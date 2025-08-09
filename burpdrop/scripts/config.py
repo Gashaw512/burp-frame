@@ -4,7 +4,7 @@ import platform
 import shutil
 from .logger import Logger
 
-logger = Logger(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+logger = Logger()
 
 # --- Constants ---
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")

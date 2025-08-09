@@ -5,6 +5,8 @@ import sys
 import atexit
 # Correcting imports to be relative to the package
 from .logger import Logger
+
+
 from .config import load_config, save_config, get_tool_path
 from .cert_handler import get_cert_file, convert_cert
 from .adb_client import check_device_connection, install_certificate, TEMP_CERT_DIR, get_android_version
