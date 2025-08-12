@@ -1,31 +1,75 @@
-# 🔐 burpDrop – Cross-Platform Burp Suite CA Certificate Installer for Android
+# 🔐 burp-frame – Unified Android Penetration Testing Framework
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](#)
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Author](https://img.shields.io/badge/Author-Gashaw%20Kidanu-orange)](#)
 
-**burpDrop** is a professional-grade automation tool that simplifies installing [Burp Suite](https://portswigger.net/burp) CA certificates into **rooted Android devices or emulators**.
-Built for **security professionals**, **pen testers**, and **mobile developers**, it automates certificate conversion, deployment, permission setting, and rebooting — all with robust logging and cross-platform support.
+**burp-frame**  is a professional-grade, cross-platform automation tool designed to streamline mobile security assessments on rooted Android devices and emulators. It unifies essential tasks for HTTPS traffic interception and dynamic analysis, including certificate management, global/per-app proxy configuration, Frida server deployment, and advanced SSL pinning/security bypass techniques.
+
+Built for security **security professionals**, **pen testers**, and **mobile developers**, burp-frame automates complex workflows with robust logging and comprehensive command-line interface.
 
 ![burpDrop Workflow](https://via.placeholder.com/800x400?text=BurpDrop+Workflow+Diagram)
 
 ---
 
-## ✨ Features
+# ✨ Key Features
 
-- ✅ One-command certificate installation
-- 🔁 Converts Burp CA cert (DER → PEM → `.0`) with subject hash
-- 📲 Pushes cert to `/system/etc/security/cacerts/` on Android device
-- 🔒 Verifies ADB and OpenSSL availability
-- 📦 Automatically cleans up temporary certificate files on exit
-- 🧰 Interactive CLI with prompts and auto-validation
-- 📜 Timestamped logging to `logs/` directory
-- 🖥️ Cross-platform support: Windows, macOS, and Linux
-- 🤖 **Magisk support**: Installs certificates to the systemless Magisk path.
-- 🧪 **Dry-run mode**: Simulates the installation without making any changes.
+## Unified CLI
+- A single command-line interface for all Android pentesting operations.
+
+## Certificate Installation (install module)
+- One-command installation of Burp Suite CA certificates.
+- Automates conversion of DER to Android-compatible .0 format.
+- Pushes certs to `/system/etc/security/cacerts/` (or Magisk systemless path).
+  
+## Magisk Support
+- Installs certificates to the systemless Magisk path.
+- **Dry-run mode:** Simulate certificate installation without making changes.
+
+## Proxy Management (proxy module)
+- Set/clear global HTTP proxy settings on the device via ADB.
+- (Conceptual) Set/clear per-application proxy settings.
+- Test proxy connectivity and discover device IP addresses.
+
+## Frida Integration (frida module)
+- Deploy and start frida-server on the Android device.
+- List running processes, kill processes by PID/package name.
+- Launch applications with a custom Frida script injected.
+- **Certificate Re-Pinning Bypass:** Inject a custom CA certificate at runtime using Frida to bypass pinning for apps that check for trusted CAs.
+
+## SSL Pinning & Security Bypasses (bypass-ssl & universal-bypass modules)
+- **Generic SSL Bypass:** Download and apply general Frida SSL pinning bypass scripts.
+- **Universal Bypass:** Comprehensive Frida script to bypass various security checks (SSL pinning, debugger detection, root detection, emulator detection).
+
+## Device Management (device module)
+- Reboot device, remount /system partition (read-write/read-only).
+- List connected ADB devices.
+- Install and uninstall APKs.
+- Connect/disconnect ADB over TCP/IP.
+
+## Automation & Usability
+- Automatically cleans up temporary certificate files on exit.
+- Interactive CLI with prompts, auto-validation, and helpful messages.
+- Timestamped logging to a dedicated `logs/` directory for auditing and troubleshooting.
+
+## Cross-Platform
+- Supports Windows, macOS, and Linux.
 
 ---
+
+# 📦 Requirements
+
+- **Python 3.7+**
+- **ADB (Android Debug Bridge)**
+- **OpenSSL** available in your system's PATH
+- **Frida CLI (frida-tools):** Install via `pip install frida-tools` (note: `pip install frida` also covers the Python library requirement).
+- **Frida Server:** Automatically deployed by `burp-frame frida deploy`, but a working internet connection is needed for the initial download.
+- **Rooted Android device or emulator** (e.g., Genymotion, Magisk-patched AVDs)
+- **Burp Suite CA certificate** exported as `.der` format (for `install` and `frida cert-repin` commands).
+
+
+
 
 ## 📦 Requirements
 
@@ -42,17 +86,272 @@ Built for **security professionals**, **pen testers**, and **mobile developers**
 ### Option 1: From PyPI (recommended)
 
 ```bash
-pip install burpdrop
+pip install burp-frame
 ```
 
 ### Option 2: From source
 ```bash
 git clone [https://github.com/Gashaw512/android-traffic-interception-guide](https://github.com/Gashaw512/android-traffic-interception-guide)
-cd android-traffic-interception-guide/burpdrop
+cd android-traffic-interception-guide/burp-frame
 pip install .
 
 ```
-> ✅ Tip: Use a Python virtual environment to avoid system conflicts.
+> ✅ Tip: Use a Python [virtual environment](https://docs.python.org/3/library/venv.html) to avoid system conflicts.
+
+
+# ⚙️ Quick Start
+
+1. **Configure Tool Paths**  
+   First, tell `burp-frame` where your `adb` and `openssl` executables are.
+```bash
+burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
+# For Linux/macOS:
+# burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
+
+```
+You can verify your configuration anytime:
+
+```bash
+burp-frame config
+```
+2. **Connect Your Android Device**  
+Enable USB debugging on your Android phone or emulator.  
+Ensure your device is detected by ADB:  
+   ```bash
+   adb devices
+   ```
+
+3. **Deploy Frida Server**  
+This is required for all Frida-related commands.  
+   ```bash
+  burp-frame frida deploy
+   ```
+# 📝 Command-Specific Usage
+
+## install Module: Certificate Installation
+Automates installing Burp Suite's CA certificate on your Android device.
+
+1. **Export Burp certificate:**  
+   In Burp Suite: `Proxy → Proxy Settings/Options → Import/Export CA Certificate`. Choose DER format and save (e.g., `burp.der`).
+
+2. **Standard interactive install (prompt-based):**  
+```bash
+   burp-frame install
+```
+(You'll be prompted to select the certificate file path). The device will automatically reboot once successful.
+
+### Install for Magisk systemless root:
+```bash
+burp-frame install --magisk
+```
+### Simulate installation without making changes:
+```bash
+burp-frame install --dry-run
+```
+## proxy Module: Device Proxy Configuration
+Manages global and conceptual per-app HTTP proxy settings.
+
+### Set global HTTP proxy:
+```bash
+burp-frame proxy set <YOUR_HOST_IP>:8080
+```
+Example:
+```bash
+burp-frame proxy set 192.168.1.100:8080
+```
+### Clear global HTTP proxy:
+```bash
+burp-frame proxy clear
+```
+### Get current global HTTP proxy settings:
+```bash
+burp-frame proxy get
+```
+### Test global HTTP proxy connection:
+```bash
+burp-frame proxy test --url http://google.com
+```
+### Display device IP addresses:
+```bash
+burp-frame proxy ips
+```
+### (Conceptual) Set per-app proxy:
+```bash
+burp-frame proxy app set com.example.app <YOUR_HOST_IP>:8080
+```
+
+### (Conceptual) Clear per-app proxy::
+```bash
+burp-frame proxy app clear com.example.app
+```
+
+### (Conceptual) List apps with proxy settings::
+```bash
+burp-frame proxy app list
+```
+## frida Module: Dynamic Instrumentation
+Interact with Frida for process management and script injection.
+
+### Deploy Frida server to the device:
+```bash
+burp-frame frida deploy
+```
+### List all running processes on the device:
+```bash
+burp-frame frida ps
+```
+### Kill a process by PID or package name:
+```bash
+burp-frame frida kill <PID_OR_PACKAGE_NAME>
+# Example: burp-frame frida kill com.example.app
+```
+### Launch an app and inject a custom Frida script:
+```bash
+burp-frame frida launch <PACKAGE_NAME> --script /path/to/your/custom_frida_script.js
+```
+### Apply certificate re-pinning bypass (using a custom CA):
+This command pushes a local certificate (e.g., your Burp CA) to the device and uses a Frida script to inject it into the app's trust store.
+
+```bash
+burp-frame frida cert-repin <PACKAGE_NAME> --cert /path/to/your/burp_certificate_file.0
+```
+To attach to a running app:
+```bash
+burp-frame frida cert-repin <PACKAGE_NAME> --cert /path/to/your/burp_certificate_file.0 --attach
+```
+💡 Note: The .0 certificate file is generated by burp-frame install (or manually converted from DER using openssl).
+## bypass-ssl Module: Generic SSL Pinning Bypasses
+Manage and apply general-purpose SSL pinning bypass scripts.
+
+### List available local SSL bypass scripts:
+```bash
+burp-frame bypass-ssl list
+```
+### Download a generic SSL bypass script:
+```bash
+burp-frame bypass-ssl download
+```
+### Apply a local SSL bypass script to a target application:
+```bash
+burp-frame bypass-ssl apply <PACKAGE_NAME> --script universal_bypass.js
+```
+#### To attach to a running app:
+```bash
+burp-frame bypass-ssl apply <PACKAGE_NAME> --script universal_bypass.js --target-running
+```
+## universal-bypass Module: Comprehensive Security Bypasses
+Apply a powerful, all-in-one Frida script to bypass various security checks.
+
+### Apply universal bypass (launches app and injects):
+```bash
+burp-frame universal-bypass <PACKAGE_NAME>
+```
+### Apply universal bypass (attaches to running app and injects):
+```bash
+burp-frame universal-bypass <PACKAGE_NAME> --attach
+```
+⚠️ **Important:** Both `frida cert-repin` and `universal-bypass` commands will keep your terminal session active to maintain the Frida injection. Close the session (Ctrl+C) when you are done.
+
+## device Module: Android Device Management
+Control device state and manage installed applications.
+
+### Reboot the connected Android device:
+```bash
+burp-frame device reboot
+```
+### Remount /system partition as read-write (requires root):
+```bash
+burp-frame device remount-rw
+```
+### Remount /system partition as read-only (requires root):
+```bash
+burp-frame device remount-ro
+```
+### List all connected ADB devices:
+```bash
+burp-frame device ls
+```
+### Install an APK file onto the device:
+```bash
+burp-frame device install /path/to/your/app.apk
+```
+### Uninstall an application by package name:
+```bash
+burp-frame device uninstall com.example.app
+```
+### Connect to a device over TCP/IP:
+```bash
+burp-frame device connect 192.168.1.10:5555
+```
+### Disconnect from a device over TCP/IP:
+```bash
+burp-frame device disconnect 192.168.1.10:5555
+```
+
+## config Module: Tool Path Configuration
+Manage paths for external tools like ADB, OpenSSL, and Frida binaries.
+
+### Interactive configuration wizard:
+```bash
+burp-frame config
+```
+### Set specific paths directly:
+```bash
+burp-frame config --adb "/path/to/adb" --openssl "/path/to/openssl" --frida-server-binary "/path/to/frida-server" --frida-cli "/path/to/frida"
+```
+### View current configuration:
+```bash
+burp-frame config
+```
+You can also manually inspect the `config.json` file located in the user's config directory:
+
+- **Linux/macOS:** `~/.config/burp-frame/config.json`
+- **Windows:** `C:\Users\YOUR_USER\AppData\Roaming\burp-frame\config.json`
+
+## logs Module: View Operation Logs
+Access detailed operation logs for troubleshooting and auditing.
+
+### View recent logs and select a log file to display:
+```bash
+burp-frame logs
+```
+⚠️ **Troubleshooting**
+
+| Issue                                                | Solution                                                                                                          |
+|------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| ❌ adb or openssl not found                          | Run `burp-frame config` to set the correct paths.                                                               |
+| ❌ Certificate conversion fails                       | Ensure OpenSSL is installed and accessible. Confirm the certificate is in DER format.                            |
+| ❌ Device not detected                                | Run `adb devices` to confirm connection. Ensure USB debugging is enabled on your device. Check ADB drivers if on Windows. For remote connections, ensure `adb tcpip` is enabled on the device and firewall allows connection. |
+| ❌ frida-server not running/found                    | After `burp-frame frida deploy`, verify `frida-server` is running on the device. Check device logs for errors if it fails to start. |
+| ❌ Frida attachment fails                             | Ensure the target app is running (for `--attach`), correct package name is used, and device has `frida-server` running. Check device memory and process limits. |
+| ⚠️ adb remount fails                                 | Ensure your device/emulator is rooted. Some devices have dm-verity enabled on `/system`. Try `adb disable-verity` followed by `adb reboot`, `adb root`, then `adb remount`. |
+| ❌ ImportError after PyPI install                    | Ensure `pip install burp-frame` completed without errors. If running from source, make sure you ran `pip install .` from the project root (where `pyproject.toml` is). |
+| ❌ TypeError: ArgumentParser.__init__() got an unexpected keyword argument 'formatter' | Update your `cli.py` to use `formatter_class=argparse.RawTextHelpFormatter` instead of `formatter=...` in all `add_parser` calls. |
+
+📚 **FAQ**
+
+### How do I export the certificate from Burp?
+Go to: `Proxy → Options → Import/Export CA Certificate`. Choose DER format and save the file (e.g., `burp.der`).
+
+### Why does burp-frame require root access for certificate installation?
+Android mandates that trusted CA certificates are installed into the system's certificate store, which resides in a protected `/system` partition. Modifying this partition requires root privileges. Magisk provides a systemless way to do this.
+
+### My emulator isn't rooted. What now?
+`burp-frame` requires root access for system-level certificate installation and many advanced Frida operations. Use one of the following:
+- ✅ **Genymotion** (emulators are rooted by default).
+- ✅ **Magisk-patched AVDs** (Android Virtual Devices).
+- ✅ **Custom rooted emulator images**.
+
+### adb remount fails?
+This is usually due to `dm-verity` issues on the device. Ensure the device is rooted and consider disabling `dm-verity` if necessary.
+
+
+
+
+
+
+
+
 
 ## ⚙️ Quick Start
 
