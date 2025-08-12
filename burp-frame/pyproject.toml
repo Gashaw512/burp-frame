@@ -2,26 +2,33 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[projepypi-AgEIcHlwaS5vcmcCJDY5MzMyYmMwLTYzYWMtNDA3My04MWZmLThmZDRiZWVjNjAxYQACKlszLCI1ZTFmZWExZC1mNWRmLTQyMzQtOWYyMy1kOGRlNDhmMGRkNTciXQAABiBVrGO_470lVYuNXxhN2oJaoJT4d7LTLoj4G0R_smEGkwct]
-name = "burpdrop"
-version = "1.2.0"
+[project]
+name = "burp-frame"  # This is the name the package that will be on PyPI
+version = "1.0.0"     # Current version of the project
 authors = [
   { name="Gashaw Kidanu", email="kidanugashaw@gmail.com" },
 ]
-description = "A cross-platform Burp Suite CA Certificate installer for Android devices"
-readme = "README.md"
+description = "A unified Android penetration testing framework with features for certificate installation, proxy configuration, Frida instrumentation, and universal bypasses."
+readme = "README.md"  # Points to the README file for PyPI description
 requires-python = ">=3.7"
-license = { text = "MIT License" }  # This is the correct, non-deprecated way to specify the license.
+license = { text = "MIT License" } # Correct way to specify MIT License text
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Topic :: Security",
-    "Topic :: Utilities",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Development Status :: 4 - Beta", # Use 4 for beta, 5 for stable
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: System Administrators",
+  "Topic :: Security",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Utilities",
 ]
-keywords = ["android", "burpsuite", "certificate", "installer", "root", "magisk", "interception", "security"]
+keywords = [
+    "android", "burpsuite", "certificate", "installer", "root",
+    "magisk", "interception", "security", "frida", "ssl-pinning",
+    "bypass", "universal-bypass", "mobile-security", "pentesting"
+]
 dependencies = [
     "requests",
     "colorama",
@@ -33,11 +40,23 @@ dependencies = [
 "Bug Tracker" = "https://github.com/Gashaw512/android-traffic-interception-guide/issues"
 
 [project.scripts]
-burpdrop = "scripts.main:main"
+# CRUCIAL CHANGE: The console script points to 'scripts.cli:main'
+# because 'scripts' is the top-level package within the source layout.
+burp-frame = "scripts.cli:main"
 
 [tool.setuptools.package-data]
-"scripts" = ["config.json", "requirements.txt"]
+# This tells setuptools to include non-Python files that are part of your package.
+# Example: if you had a static config file inside 'scripts/data/'
+# "scripts" = ["data/*.json"]
+
+# Your current setup downloads .js files to 'data/' which is outside the 'scripts' package.
+# So, you generally don't need to explicitly list 'config.json' or .js files here unless
+# you decide to bundle default ones directly inside the 'scripts' package.
+
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["scripts*"]
+# CRUCIAL CHANGE: This tells setuptools to find packages starting with 'scripts'.
+# It will treat the 'scripts' directory as the root of your Python package.
+where = ["."] # Search in the current directory (burp-frame/)
+include = ["scripts*"] # Include anything starting with 'scripts' (i.e., the 'scripts/' directory)
+
