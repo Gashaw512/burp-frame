@@ -32,3 +32,8 @@ __pycache__/
 # Dependency lockfiles (add if using package managers)
 package-lock.json
 yarn.lock
+# Ignore downloaded Frida binaries
+burpdrop/scripts/temp_frida_download/
+# Ignore downloaded Frida binaries
+burp-frame/scripts/temp_frida_download/
+
