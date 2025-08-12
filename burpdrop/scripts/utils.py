@@ -94,4 +94,3 @@ def cleanup_temp_files():
             logger.info("Cleaned temporary certificate files.")
         except Exception as e:
             logger.error(f"Cleanup of temporary files failed: {str(e)}")
-

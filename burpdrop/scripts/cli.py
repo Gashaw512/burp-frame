@@ -8,14 +8,26 @@ import os
 from .logger import Logger
 from .config import load_config, save_config
 from .utils import get_tool_path, cleanup_temp_files
-from .device_manager import check_device_connection, get_android_version, perform_install_certificate
+from .device_manager import (
+    check_device_connection, get_android_version, perform_install_certificate,
+    reboot_device, remount_system_rw, remount_system_ro,
+    list_adb_connected_devices, install_apk, uninstall_package,
+    connect_adb_device, disconnect_adb_device
+)
 from .cert_manager import get_cert_file, convert_cert
-# Corrected imports from proxy_manager.py
-from .proxy_manager import set_global_proxy, clear_global_proxy, get_current_global_proxy_settings, \
-                           test_proxy_connection, get_device_ip_addresses, \
-                           set_app_proxy, clear_app_proxy, get_app_proxy, list_apps_with_proxy_settings_by_tool
-# Updated imports from frida_manager.py to include new functionalities
-from .frida_manager import deploy_frida_server, run_frida_script, list_processes, kill_frida_process, launch_application_with_script
+from .proxy_manager import (
+    set_global_proxy, clear_global_proxy, get_current_global_proxy_settings,
+    test_proxy_connection, get_device_ip_addresses,
+    set_app_proxy, clear_app_proxy, get_app_proxy, list_apps_with_proxy_settings_by_tool
+)
+from .frida_manager import (
+    deploy_frida_server, run_frida_script, list_processes, kill_frida_process,
+    launch_application_with_script
+)
+# NEW: Import from the new bypass_ssl_manager
+from .bypass_ssl_manager import (
+    list_bypass_scripts, download_generic_bypass_script, apply_bypass_script
+)
 
 
 # --- Constants ---
@@ -33,6 +45,8 @@ Commands:
   install     Install Burp Suite CA certificate on Android devices.
   proxy       Configure device HTTP proxy settings for traffic interception.
   frida       Deploy and interact with Frida for dynamic instrumentation.
+  bypass-ssl  Manage and apply Frida SSL pinning bypass scripts.
+  device      Manage Android device state and installed applications.
   config      Manage paths for external tools (ADB, OpenSSL).
   logs        View detailed operation logs.
   help        Show this help message.
@@ -44,12 +58,13 @@ Options:
 Examples:
   burp-frame install --magisk                 # Install Burp cert via Magisk
   burp-frame proxy set --host 192.168.1.100 --port 8080 # Set device global proxy
-  burp-frame proxy app set com.example.app --host 192.168.1.100 --port 8080 # Set app proxy
-  burp-frame proxy test                       # Test global proxy connection
   burp-frame frida deploy                     # Deploy Frida server
-  burp-frame frida ps                         # List all running processes
-  burp-frame frida kill com.example.app       # Kill an app by package name
-  burp-frame frida launch com.example.app --script my_script.js # Launch app with script
+  burp-frame bypass-ssl download              # Download a generic bypass script
+  burp-frame bypass-ssl apply com.example.app --script universal_bypass.js # Apply bypass
+  burp-frame device ls                        # List connected ADB devices
+  burp-frame device connect 192.168.1.50      # Connect to a device over TCP/IP (default port 5555)
+  burp-frame device reboot                    # Reboot the connected device
+  burp-frame device install app.apk           # Install an APK
   burp-frame config --adb "/usr/bin/adb"      # Set ADB executable path
   burp-frame logs                             # View recent logs
 
@@ -191,8 +206,9 @@ def _frida_flow(args, config):
             return False
 
     elif args.frida_command == 'kill':
+        # args.target is defined by the parser for 'kill' subcommand
         if not args.target:
-            logger.error("Error: --target (PID or package name) is required for 'frida kill'.")
+            logger.error("Error: A target (PID or package name) is required for 'frida kill'.")
             return False
         return kill_frida_process(args.target)
 
@@ -201,6 +217,97 @@ def _frida_flow(args, config):
             logger.error("Error: --package-name and --script are required for 'frida launch'.")
             return False
         return launch_application_with_script(args.package_name, args.script)
+
+    return False
+
+def _bypass_ssl_flow(args, config):
+    """Handles the 'bypass-ssl' command logic (SSL Pinning Bypass)."""
+    logger.info("Initiating SSL Pinning Bypass operations...")
+
+    # For 'download' command, device connection isn't strictly necessary.
+    # For 'list' command, device connection isn't strictly necessary.
+    # For 'apply' command, device connection IS necessary.
+    if args.bypass_ssl_command == 'apply' and not check_device_connection(get_tool_path("adb")):
+        logger.error("No Android device detected or device is not ready for applying bypass scripts.")
+        return False
+    
+    if args.bypass_ssl_command == 'list':
+        return list_bypass_scripts()
+    
+    elif args.bypass_ssl_command == 'download':
+        return download_generic_bypass_script()
+    
+    elif args.bypass_ssl_command == 'apply':
+        if not args.package_name or not args.script:
+            logger.error("Error: --package-name and --script are required for 'bypass-ssl apply'.")
+            return False
+        
+        # Decide whether to launch or attach based on 'target-running' flag
+        launch_app = not args.target_running # If --target-running is present, launch_app is False
+        
+        return apply_bypass_script(
+            package_name=args.package_name,
+            script_filename=args.script,
+            launch_app=launch_app
+        )
+    return False
+
+
+def _device_flow(args, config):
+    """Handles the 'device' command logic (device control and app management)."""
+    logger.info("Initiating device management operations...")
+
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        logger.error("ADB path not configured. Cannot perform device operations.")
+        return False
+
+    # For 'connect' and 'disconnect', we don't necessarily need a device to be already connected.
+    # The check is more for other commands that require an active connection.
+    if args.device_command not in ['connect', 'disconnect'] and not check_device_connection(adb_path):
+        logger.error("No Android device detected or device is not ready for this device management operation.")
+        return False
+    
+    if args.device_command == 'reboot':
+        return reboot_device()
+    
+    elif args.device_command == 'remount-rw':
+        return remount_system_rw(adb_path)
+    
+    elif args.device_command == 'remount-ro':
+        return remount_system_ro(adb_path)
+    
+    elif args.device_command == 'ls':
+        devices = list_adb_connected_devices()
+        return True # list_adb_connected_devices handles its own logging and returns a list. True if executed without crash.
+    
+    elif args.device_command == 'install':
+        if not args.apk_path:
+            logger.error("Error: --apk-path is required for 'device install'.")
+            return False
+        # Ensure apk_path is absolute for better handling
+        args.apk_path = os.path.abspath(args.apk_path)
+        return install_apk(args.apk_path)
+
+    elif args.device_command == 'uninstall':
+        if not args.package_name:
+            logger.error("Error: --package-name is required for 'device uninstall'.")
+            return False
+        return uninstall_package(args.package_name)
+
+    elif args.device_command == 'connect':
+        # ip_address:port is one argument from CLI, need to split
+        ip_parts = args.ip_address_port.split(':')
+        ip_address = ip_parts[0]
+        port = ip_parts[1] if len(ip_parts) > 1 else "5555"
+        return connect_adb_device(ip_address, port)
+
+    elif args.device_command == 'disconnect':
+        # ip_address:port is one argument from CLI, need to split
+        ip_parts = args.ip_address_port.split(':')
+        ip_address = ip_parts[0]
+        port = ip_parts[1] if len(ip_parts) > 1 else "5555"
+        return disconnect_adb_device(ip_address, port)
 
     return False
 
@@ -415,6 +522,51 @@ def parse_arguments():
     frida_launch_parser.add_argument('--script', required=True, help='Path to the Frida JS script to inject.')
 
 
+    # 'bypass-ssl' subcommand - NEW
+    bypass_ssl_parser = subparsers.add_parser(
+        'bypass-ssl',
+        help='Manage and apply Frida SSL pinning bypass scripts.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    bypass_ssl_subsubparsers = bypass_ssl_parser.add_subparsers(dest='bypass_ssl_command', help='Bypass SSL Commands')
+
+    bypass_ssl_list_parser = bypass_ssl_subsubparsers.add_parser('list', help='List available local SSL bypass scripts.')
+    bypass_ssl_download_parser = bypass_ssl_subsubparsers.add_parser('download', help='Download a generic SSL bypass script from a public source.')
+    
+    bypass_ssl_apply_parser = bypass_ssl_subsubparsers.add_parser('apply', help='Apply a local SSL bypass script to a target application.')
+    bypass_ssl_apply_parser.add_argument('package_name', help='Package name of the target application.')
+    bypass_ssl_apply_parser.add_argument('--script', required=True, help='Filename of the bypass script (must be in the scripts directory).')
+    bypass_ssl_apply_parser.add_argument('--target-running', action='store_true', 
+                                         help='Attach to a running app instead of launching it (default is launch).')
+
+
+    # 'device' subcommand
+    device_parser = subparsers.add_parser(
+        'device',
+        help='Manage Android device state (reboot, remount) and applications (install, uninstall, connect).',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    device_subsubparsers = device_parser.add_subparsers(dest='device_command', help='Device Management Commands')
+
+    device_reboot_parser = device_subsubparsers.add_parser('reboot', help='Reboot the connected Android device.')
+    device_remount_rw_parser = device_subsubparsers.add_parser('remount-rw', help='Remount /system partition as read-write (requires root).')
+    device_remount_ro_parser = device_subsubparsers.add_parser('remount-ro', help='Remount /system partition as read-only (requires root).')
+    device_ls_parser = device_subsubparsers.add_parser('ls', help='List all connected ADB devices and their properties.')
+    
+    device_install_parser = device_subsubparsers.add_parser('install', help='Install an APK file onto the device.')
+    device_install_parser.add_argument('apk_path', help='Local path to the APK file.')
+
+    device_uninstall_parser = device_subsubparsers.add_parser('uninstall', help='Uninstall an application by package name.')
+    device_uninstall_parser.add_argument('package_name', help='Package name of the application to uninstall (e.g., com.example.app).')
+
+    # Device Connection commands
+    device_connect_parser = device_subsubparsers.add_parser('connect', help='Connect to a device over TCP/IP (e.g., 192.168.1.10:5555).')
+    device_connect_parser.add_argument('ip_address_port', metavar='IP_ADDRESS[:PORT]', help='IP address and optional port (default 5555).')
+
+    device_disconnect_parser = device_subsubparsers.add_parser('disconnect', help='Disconnect from a device over TCP/IP (e.g., 192.168.1.10:5555).')
+    device_disconnect_parser.add_argument('ip_address_port', metavar='IP_ADDRESS[:PORT]', help='IP address and optional port (default 5555).')
+
+
     # 'config' subcommand
     config_parser = subparsers.add_parser(
         'config',
@@ -468,6 +620,10 @@ def main():
         command_executed = _proxy_flow(args, config)
     elif args.command == 'frida':
         command_executed = _frida_flow(args, config)
+    elif args.command == 'bypass-ssl': # NEW command flow
+        command_executed = _bypass_ssl_flow(args, config)
+    elif args.command == 'device':
+        command_executed = _device_flow(args, config)
     elif args.command == 'config':
         command_executed = _config_flow(args, config)
     elif args.command == 'logs':

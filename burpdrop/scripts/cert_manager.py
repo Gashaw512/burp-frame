@@ -58,7 +58,8 @@ def convert_cert(cert_path, openssl_path):
             [openssl_path, "x509", "-inform", "der", "-in", cert_path, "-out", pem_file],
             check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True
         )
         logger.progress("Conversion progress", 1, 3)
         
