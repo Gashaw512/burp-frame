@@ -2,11 +2,9 @@
 
 import os
 import sys
-
-# Path to the directory containing your main 'scripts' package.
-# From conf.py (inside burp-frame/docs/), go up one level to burp-frame/.
-current_dir = os.path.dirname(__file__) # This is .../burp-frame/docs/
-project_base_dir = os.path.abspath(os.path.join(current_dir, '..')) # This is .../burp-frame/
+# Add the project base directory to sys.path so we can import our package
+current_dir = os.path.dirname(__file__) # .../burp-frame/docs/
+project_base_dir = os.path.abspath(os.path.join(current_dir, '..')) # .../burp-frame/
 sys.path.insert(0, project_base_dir)
 
 # Project information
