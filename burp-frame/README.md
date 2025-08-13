@@ -5,18 +5,16 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Author](https://img.shields.io/badge/Author-Gashaw%20Kidanu-orange)](#)
 
-**burp-frame**  is a professional-grade, cross-platform automation tool meticulously designed to streamline mobile security assessments on rooted Android devices and emulators. It functions as a "one-shot" tester's toolkit 🎯, unifying essential tasks for HTTPS traffic interception and dynamic analysis, encompassing comprehensive certificate management, flexible global and per-application proxy configurations, robust Frida server deployment, and advanced, highly effective SSL pinning and security bypass techniques.
+`burp-frame`  is a professional-grade, cross-platform automation tool meticulously designed to streamline mobile security assessments on rooted Android devices and emulators. It functions as a "one-shot" tester's toolkit 🎯, unifying essential tasks for HTTPS traffic interception and dynamic analysis, encompassing comprehensive certificate management, flexible global and per-application proxy configurations, robust Frida server deployment, and advanced, highly effective SSL pinning and security bypass techniques.
 
 Built for security **security professionals**, **pen testers**, and **mobile developers**,`burp-frame` automates complex, multi-step workflows with a user-friendly yet powerful command-line interface (CLI), supported by robust logging and cross-platform compatibility.
-
 
 ![burpDrop Workflow](https://via.placeholder.com/800x400?text=BurpDrop+Workflow+Diagram)
 
 ---
 
 
-
-✨ **Key Features**
+## ✨ Key Features
 
 - **Unified CLI:** A singular, intuitive command-line interface for orchestrating all Android pentesting operations, simplifying complex workflows.
 
@@ -43,7 +41,7 @@ Built for security **security professionals**, **pen testers**, and **mobile dev
 
 - **SSL Pinning & Security Bypasses (bypass-ssl & universal-bypass modules):**
   - Generic SSL Bypass: Facilitates the management (listing, downloading) and application of general-purpose Frida scripts designed to bypass various forms of SSL pinning implemented in Android applications.
-  - Comprehensive Universal Bypass: Deploys a powerful, all-in-one Frida script (enhanced with the latest techniques) to comprehensively bypass multiple crucial security checks, including:
+  - Comprehensive Universal Bypass: Deploys a powerful, **all-in-one** Frida script (enhanced with the latest techniques) to comprehensively bypass multiple crucial security checks, including:
     - **SSL pinning:** Covering multiple methods including OkHttp, Conscrypt, and HostnameVerifier.
     - **Root detection:** Bypassing checks via filesystem anomalies, Runtime exec calls, SystemProperties, and common libraries like RootBeer.
     - **Debugger checks:** Circumventing detection mechanisms for attached debuggers.
@@ -62,95 +60,54 @@ Built for security **security professionals**, **pen testers**, and **mobile dev
   - Detailed logging: Generates timestamped, categorized logs to a dedicated `logs/` directory, essential for auditing, troubleshooting, and documenting pentesting activities.
   - **Cross-Platform Compatibility:** Fully supports Windows, macOS, and Linux operating systems.
 
-
-
-
-
-
-
-# ✨ Key Features
-
-## Unified CLI
-- A single command-line interface for all Android pentesting operations.
-
-## Certificate Installation (install module)
-- One-command installation of Burp Suite CA certificates.
-- Automates conversion of DER to Android-compatible .0 format.
-- Pushes certs to `/system/etc/security/cacerts/` (or Magisk systemless path).
-  
-## Magisk Support
-- Installs certificates to the systemless Magisk path.
-- **Dry-run mode:** Simulate certificate installation without making changes.
-
-## Proxy Management (proxy module)
-- Set/clear global HTTP proxy settings on the device via ADB.
-- (Conceptual) Set/clear per-application proxy settings.
-- Test proxy connectivity and discover device IP addresses.
-
-## Frida Integration (frida module)
-- Deploy and start frida-server on the Android device.
-- List running processes, kill processes by PID/package name.
-- Launch applications with a custom Frida script injected.
-- **Certificate Re-Pinning Bypass:** Inject a custom CA certificate at runtime using Frida to bypass pinning for apps that check for trusted CAs.
-
-## SSL Pinning & Security Bypasses (bypass-ssl & universal-bypass modules)
-- **Generic SSL Bypass:** Download and apply general Frida SSL pinning bypass scripts.
-- **Universal Bypass:** Comprehensive Frida script to bypass various security checks (SSL pinning, debugger detection, root detection, emulator detection).
-
-## Device Management (device module)
-- Reboot device, remount /system partition (read-write/read-only).
-- List connected ADB devices.
-- Install and uninstall APKs.
-- Connect/disconnect ADB over TCP/IP.
-
-## Automation & Usability
-- Automatically cleans up temporary certificate files on exit.
-- Interactive CLI with prompts, auto-validation, and helpful messages.
-- Timestamped logging to a dedicated `logs/` directory for auditing and troubleshooting.
-
-## Cross-Platform
-- Supports Windows, macOS, and Linux.
 ---
-
-# 📦 Requirements
-
-- **Python 3.7+**
-- *[ADB (Android Debug Bridge)](https://developer.android.com/studio/releases/platform-tools)**
-- [OpenSSL](https://www.openssl.org/) available in `PATH`
-- **Frida CLI (frida-tools):** Install via `pip install frida-tools` (note: `pip install frida` also covers the Python library requirement).
-- **Frida Server:** Automatically deployed by `burp-frame frida deploy`, but a working internet connection is needed for the initial download.
-- **Rooted Android device or emulator** (e.g., [Genymotion](https://www.genymotion.com/), Magisk-patched AVDs)
-- **Burp Suite CA certificate** exported as `.der` format (for `install` and `frida cert-repin` commands).
 
 ## 📦 Requirements
 
-- Python **3.7+**
-- [ADB (Android Debug Bridge)](https://developer.android.com/studio/releases/platform-tools)
-- [OpenSSL](https://www.openssl.org/) available in `PATH`
-- Rooted Android device or emulator (e.g., [Genymotion](https://www.genymotion.com/))
-- Burp Suite CA certificate exported as `.der` format
-
+- **Python 3.7+** The framework is built on modern Python features.
+- **[ADB (Android Debug Bridge)](https://developer.android.com/studio/releases/platform-tools)** The primary tool for device communication. Ensure it's installed and accessible in your system's PATH.
+- [OpenSSL](https://www.openssl.org/) available in `PATH`. It is required for certificate conversions. Ensure it's installed and available in your PATH.
+- **Frida CLI (frida-tools):** Install via `pip install frida-tools` (note: `pip install frida` also covers the Python library requirement).
+- **Frida Server:** The on-device component of Frida. `burp-frame frida deploy` automates its download and deployment, requiring a working internet connection for the initial setup.
+- **Rooted Android device or emulator** Essential for modifying system partitions (e.g., for certificate installation) and for many advanced Frida operations.  (e.g., [Genymotion](https://www.genymotion.com/), or Magisk-patched Android Virtual Devices (AVDs))
+- **Burp Suite CA certificate** Exported as a `.der` format file from Burp Suite. This is necessary for the `install` command and the `frida cert-repin` functionality.
 ---
 
 ## 🚀 Installation
 
 ### Option 1: From PyPI (recommended)
+For the easiest installation, use pip:
 
 ```bash
 pip install burp-frame
 ```
-
 ### Option 2: From source
+For development or to access the latest features, clone the repository and install from source:
 ```bash
 git clone [https://github.com/Gashaw512/android-traffic-interception-guide](https://github.com/Gashaw512/android-traffic-interception-guide)
 cd android-traffic-interception-guide/burp-frame
 pip install .
 
 ```
-> ✅ Tip: Use a Python [virtual environment](https://docs.python.org/3/library/venv.html) to avoid system conflicts.
+✅ **Tip:** Always use a Python [virtual environment](https://docs.python.org/3/library/venv.html) (`python -m venv .venv` then `source .venv/bin/activate`) to isolate project dependencies and avoid conflicts with system-wide Python packages.
 
 
-# ⚙️ Quick Start
+## ⚙️ Quick Start
+
+Follow these steps to get started quickly with `burp-frame`:
+
+1. **Configure External Tool Paths**  
+Before `burp-frame` can operate, you must tell it where to find your `adb` and `openssl` executables. You can also configure paths for Frida binaries if they are not in your system's PATH.
+
+**Example for Windows:**
+   ```bash
+   burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
+   ```
+**Example for Linux/macOS:**
+   ```bash
+   burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
+   ```
+
 
 1. **Configure Tool Paths**  
    First, tell `burp-frame` where your `adb` and `openssl` executables are.
@@ -159,22 +116,26 @@ burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\p
 # For Linux/macOS:
 burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
 ```
-You can verify your configuration anytime:
+You can verify your current configuration settings at any time:
 
 ```bash
 burp-frame config
 ```
 2. **Connect Your Android Device**  
-Enable USB debugging on your Android phone or emulator.  
-Ensure your device is detected by ADB:  
-   ```bash
+Ensure your Android device (physical or emulator) is properly connected and recognized by ADB.
+
+   - Enable USB debugging on your Android phone or emulator (typically found in Developer Options).
+
+   - Verify your device is detected by ADB:
+```bash
    adb devices
-   ```
+```
 
 3. **Deploy Frida Server**  
-This is required for all Frida-related commands.  
+For all Frida-related commands to function, the frida-server must be running on your Android device. `burp-frame` automates this process:
+
 ```bash
-  burp-frame frida deploy
+burp-frame frida deploy
 ```
 # 📝 Command-Specific Usage
 
