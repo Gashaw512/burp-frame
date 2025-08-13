@@ -52,14 +52,16 @@ Built for  **security professionals**, **pen testers**, and **mobile developers*
         
 -   **SSL Pinning & Security Bypasses (`bypass-ssl` & `universal-bypass` modules)**:
     
-    -   **Generic SSL Bypass**: Facilitates the management (listing, downloading) and application of general-purpose Frida scripts designed to bypass various forms of SSL pinning implemented in Android applications.
+    - **Generic SSL Bypass**: Facilitates the management (listing, downloading) and application of general-purpose Frida scripts designed to bypass various forms of SSL pinning implemented in Android applications.
         
-    -   **Comprehensive Universal Bypass**: It provides **one-shot bypassing of common Android security mechanisms** directly from your terminal.
-     Deploys a **powerful, all-in-one Frida script (enhanced with the latest techniques)** to comprehensively bypass multiple crucial security checks, including:
-    - **SSL pinning:** Covering multiple methods including OkHttp, Conscrypt, and HostnameVerifier.
-    - **Root detection:** Bypassing checks via filesystem anomalies, Runtime exec calls, SystemProperties, and common libraries like RootBeer.
-    - **Debugger checks:** Circumventing detection mechanisms for attached debuggers.
-    - **Emulator checks:** Masking indicators that reveal an application is running in an emulated environment.
+    - **Comprehensive Universal Bypass**: It provides **one-shot bypassing of common Android security mechanisms** directly from your terminal. 
+
+  Deploys a **powerful, all-in-one Frida script (enhanced with the latest techniques)** to comprehensively bypass multiple crucial security checks, including:
+
+  - **SSL pinning:** Covering multiple methods including OkHttp, Conscrypt, and HostnameVerifier.
+  - **Root detection:** Bypassing checks via filesystem anomalies, Runtime exec calls, SystemProperties, and common libraries like RootBeer.
+  - **Debugger checks:** Circumventing detection mechanisms for attached debuggers.
+  - **Emulator checks:** Masking indicators that reveal an application is running in an emulated environment.
 
 -   **Device Management (`device` module)**:
     
