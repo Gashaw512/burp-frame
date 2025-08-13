@@ -356,7 +356,95 @@ This module provides an incredibly powerful, all-in-one Frida script that combin
     
     burp-frame universal-bypass <PACKAGE_NAME> --attach
     
+    > ⚠️ **Important**: Both `frida cert-repin` and `universal-bypass` commands will keep your terminal session active to maintain the Frida injection. **Do not close your terminal** until you are finished with your testing, as closing it will detach Frida, and the bypasses will cease to function. To detach, simply press **Ctrl+C** in the terminal where the command is running.
     
+
+### **`device` Module: Android Device Management**
+
+This module offers a suite of commands for controlling your Android device's state and managing installed applications, leveraging ADB.
+
+-   **Essential device control**: Remotely reboot the connected Android device.
+    
+    ```
+    burp-frame device reboot
+    
+    ```
+    
+-   **File system manipulation**: Remount the `/system` partition as either read-write (`remount-rw`) or read-only (`remount-ro`), crucial for system-level modifications (requires root).
+    
+    ```
+    burp-frame device remount-rw
+    
+    ```
+    
+-   **Device discovery**: List all currently connected ADB devices and their properties.
+    
+    ```
+    burp-frame device ls
+    
+    ```
+    
+-   **Application lifecycle management**: Effortlessly install and uninstall APKs onto the device.
+    
+    ```
+    burp-frame device install /path/to/your/app.apk
+    
+    ```
+    
+-   **Flexible connectivity**: Connect to and disconnect from ADB devices over TCP/IP (e.g., for Wi-Fi debugging).
+    
+    ```
+    burp-frame device connect 192.168.1.10:5555
+    
+    ```
+    
+-   **Disconnect from a device over TCP/IP**: Terminates an existing network-based ADB connection.
+    
+    ```
+    burp-frame device disconnect 192.168.1.10:5555
+    
+    ```
+    
+
+### **`config` Module: Tool Path Configuration**
+
+This module allows you to easily manage and persist the absolute paths to external tools (`adb`, `openssl`, Frida binaries) that `burp-frame` depends on.
+
+-   **Interactive configuration wizard**: Launches an interactive prompt to guide you through setting paths for all supported tools.
+    
+    ```
+    burp-frame config
+    
+    ```
+    
+-   **Set specific paths directly**: Allows direct specification of tool paths via command-line arguments.
+    
+    ```
+    burp-frame config --adb "/path/to/adb" --openssl "/path/to/openssl" --frida-server-binary "/path/to/frida-server" --frida-cli "/path/to/frida"
+    
+    ```
+    
+-   **View current configuration**: Displays all currently stored tool paths.
+    
+    ```
+    burp-frame config
+    
+    ```
+    
+    > You can also manually inspect the `config.json` file. Its location varies by OS: typically `~/.config/burp-frame/config.json` on Linux/macOS, or `C:\Users\YOUR_USER\AppData\Roaming\burp-frame\config.json` on Windows.
+    
+
+### **`logs` Module: View Operation Logs**
+
+This module provides easy access to `burp-frame`'s detailed operation logs, essential for troubleshooting, auditing, and understanding framework activity.
+
+-   **View recent logs and select a log file to display**: Lists the most recent log files and allows you to choose one to display its contents directly in the terminal.
+    
+    ```
+    burp-frame logs
+    
+    ```
+        
 
 
 
