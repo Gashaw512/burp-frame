@@ -356,7 +356,7 @@ This module provides an incredibly powerful, all-in-one Frida script that combin
     
     burp-frame universal-bypass <PACKAGE_NAME> --attach
     
-    > ⚠️ **Important**: Both `frida cert-repin` and `universal-bypass` commands will keep your terminal session active to maintain the Frida injection. **Do not close your terminal** until you are finished with your testing, as closing it will detach Frida, and the bypasses will cease to function. To detach, simply press **Ctrl+C** in the terminal where the command is running.
+   > ⚠️ **Important**: Both `frida cert-repin` and `universal-bypass` commands will keep your terminal session active to maintain the Frida injection. **Do not close your terminal** until you are finished with your testing, as closing it will detach Frida, and the bypasses will cease to function. To detach, simply press **Ctrl+C** in the terminal where the command is running.
     
 
 ### **`device` Module: Android Device Management**
