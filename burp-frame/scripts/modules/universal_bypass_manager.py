@@ -1,21 +1,14 @@
 import os
 import subprocess
 import time
-import sys # For sys.exit
-import logging # This will be replaced by your framework's Logger
+import sys
+import frida # Directly import frida as it's a core dependency for this module
 
-# Ensure frida is installed; if not, logger won't be available yet
-try:
-    import frida
-except ImportError:
-    print("Error: frida module not found. Please install with `pip install frida`.")
-    sys.exit(1)
+# Local imports from your framework's 'scripts' package
+from ..logger import Logger
+from ..utils import get_tool_path, run_adb_command
 
-# Local imports from your framework
-from ..logger import Logger # Import your framework's Logger
-from ..utils import get_tool_path, run_adb_command # Import run_adb_command from your utils
-
-logger = Logger() # Instantiate your framework's logger
+logger = Logger()
 
 
 class AndroidDeviceManager:
@@ -68,7 +61,7 @@ class AndroidDeviceManager:
         # Use your framework's run_adb_command
         result = run_adb_command(self.adb_path, ["shell", "monkey", "-p", package_name, "-c", "android.intent.category.LAUNCHER", "1"])
         if result.returncode == 0:
-            time.sleep(3)  # wait a bit for app to start
+            time.sleep(3)   # wait a bit for app to start
             logger.info("App launched successfully (may take a moment to appear).")
             return True
         else:
@@ -81,57 +74,162 @@ class FridaBypassManager:
     Manages the injection of a universal security bypass script into an Android application
     using Frida. Includes SSL pinning, debugger, root, and emulator detection bypasses.
     """
-    # Universal bypass JavaScript payload - KEPT EXACTLY AS PROVIDED BY USER
+    # Universal bypass JavaScript payload - ENHANCED WITH MORE COMPREHENSIVE HOOKS
     UNIVERSAL_BYPASS_JS = """
     Java.perform(function() {
-        // SSL Pinning bypass
+        console.log("[*] Universal Bypass Script Initiated.");
+
+        // --- 1) SSL Pinning Bypass (Comprehensive Hooks) ---
         try {
-            var TrustManager = Java.registerClass({
-                name: 'com.bypass.TrustManager',
-                implements: [Java.use('javax.net.ssl.X509TrustManager')],
+            var ArrayList = Java.use('java.util.ArrayList');
+            var X509TrustManager = Java.use('javax.net.ssl.X509TrustManager');
+            var SSLContext = Java.use('javax.net.ssl.SSLContext');
+
+            // 1.1) Custom TrustManager that trusts all certificates
+            var TrustAllManager = Java.registerClass({
+                name: 'com.bypass.TrustAllManager',
+                implements: [X509TrustManager],
                 methods: {
-                    checkClientTrusted: function(chain, authType) {},
-                    checkServerTrusted: function(chain, authType) {},
-                    getAcceptedIssuers: function() { return []; }
+                    checkClientTrusted: function (chain, authType) {},
+                    checkServerTrusted: function (chain, authType) {},
+                    getAcceptedIssuers: function () { return [] }
                 }
             });
-            var trustManagers = [TrustManager.$new()];
-            var SSLContext = Java.use('javax.net.ssl.SSLContext');
-            SSLContext.init.overload('[Ljavax.net.ssl.KeyManager;', '[Ljavax.net.ssl.TrustManager;', 'java.security.SecureRandom').implementation = function(keyManager, trustManager, secureRandom) {
-                console.log('[*] Bypassing SSL Pinning: SSLContext.init() called');
-                this.init(keyManager, trustManagers, secureRandom);
+
+            var TrustManagers = [TrustAllManager.$new()];
+            var SSLContext_init = SSLContext.init.overload('[Ljavax.net.ssl.KeyManager;', '[Ljavax.net.ssl.TrustManager;', 'java.security.SecureRandom');
+            SSLContext_init.implementation = function (km, tm, sr) {
+                console.log('[*] SSLContext.init() hooked, installing TrustAllManager');
+                SSLContext_init.call(this, km, TrustManagers, sr);
             };
-            console.log("[*] SSLContext init overridden - SSL pinning bypass active");
+
+            // 1.2) OkHttp3 CertificatePinner bypass
+            try {
+                var CertificatePinner = Java.use('okhttp3.CertificatePinner');
+                CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = function (p0, p1) {
+                    console.log('[*] OkHttp3 CertificatePinner.check(String, List) bypassed for ' + p0);
+                    return;
+                };
+                CertificatePinner.check.overload('java.lang.String', '[Ljava.security.cert.Certificate;').implementation = function (p0, p1) {
+                    console.log('[*] OkHttp3 CertificatePinner.check(String, Certificate[]) bypassed for ' + p0);
+                    return;
+                };
+            } catch (e) { /* OkHttp3 might not be present */ }
+
+            // 1.3) HttpsURLConnection HostnameVerifier and SSLSocketFactory bypass
+            try {
+                var HttpsURLConnection = Java.use('javax.net.ssl.HttpsURLConnection');
+                HttpsURLConnection.setDefaultHostnameVerifier.implementation = function (verifier) {
+                    console.log('[*] HttpsURLConnection.setDefaultHostnameVerifier() bypass');
+                };
+                HttpsURLConnection.setSSLSocketFactory.implementation = function (factory) {
+                    console.log('[*] HttpsURLConnection.setSSLSocketFactory() bypass');
+                };
+            } catch (e) { /* HttpsURLConnection might not be used */ }
+
+            // 1.4) TrustManagerImpl (Android 7+) bypass - for Conscrypt
+            try {
+                var TrustManagerImpl = Java.use('com.android.org.conscrypt.TrustManagerImpl');
+                TrustManagerImpl.verifyChain.implementation = function (untrustedChain, trustAnchorChain, host, clientAuth, ocspData, tlsSctData) {
+                    console.log('[*] TrustManagerImpl.verifyChain() bypassed for ' + host);
+                    return untrustedChain; // Return original chain to allow connection
+                };
+            } catch (e) { /* Conscrypt might not be used or Android version older */ }
+
+            // 1.5) HostnameVerifier (generic)
+            try {
+                var HostnameVerifier = Java.use('javax.net.ssl.HostnameVerifier');
+                // Hooking common OkHttp's internal HostnameVerifier if present
+                var OkHostnameVerifier = Java.use('okhttp3.internal.tls.OkHostnameVerifier');
+                OkHostnameVerifier.verify.overload('java.lang.String', 'javax.net.ssl.SSLSession').implementation = function (host, sess) {
+                    console.log('[*] OkHostnameVerifier.verify() bypassed for ' + host);
+                    return true;
+                };
+            } catch (e) { /* OkHostnameVerifier might not be present */ }
+
+            console.log("[+] SSL Pinning bypass hooks installed.");
         } catch (e) { console.error("[!] SSL Pinning bypass setup failed: " + e); }
 
-        // OkHTTP3 Pinning Bypass
-        try {
-            var CertificatePinner = Java.use('okhttp3.CertificatePinner');
-            CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = function() {
-                console.log("[*] OkHTTP3 CertificatePinner.check() called - bypassed");
-                return;
-            };
-        } catch (e) {}
 
-        // Debugger Detection Bypass
+        // --- 2) Root Detection Bypass (Comprehensive Hooks) ---
+        try {
+            var String = Java.use('java.lang.String');
+
+            // 2.1) Common file path checks (e.g., /system/bin/su)
+            var File = Java.use('java.io.File');
+            File.exists.implementation = function () {
+                var path = this.getAbsolutePath();
+                var suspicious = [
+                    '/system/app/Superuser.apk', '/sbin/su', '/system/bin/su', '/system/xbin/su',
+                    '/data/local/xbin/su', '/data/local/bin/su', '/system/sd/xbin/su',
+                    '/system/bin/failsafe/su', '/su/bin/su', '/system/app/SuperSU',
+                    '/system/bin/busybox', '/system/xbin/busybox', '/data/local/tmp/busybox'
+                ];
+                if (suspicious.indexOf(String.valueOf(path)) >= 0) {
+                    console.log('[*] File.exists() root path hidden: ' + path);
+                    return false;
+                }
+                return this.exists.call(this);
+            };
+
+            // 2.2) Runtime.exec checks (e.g., 'which su', 'su -c')
+            var Runtime = Java.use('java.lang.Runtime');
+            Runtime.exec.overload('[Ljava.lang.String;').implementation = function (cmd) {
+                try {
+                    var joined = cmd.join(' ');
+                    if (joined.indexOf('which su') >= 0 || joined.indexOf('/su') >= 0 || joined.indexOf('busybox') >= 0) {
+                        console.log('[*] Runtime.exec() blocked: ' + joined);
+                        throw new java.io.IOException('Command blocked by UASB');
+                    }
+                } catch (e) {} // Don't crash if error during string ops
+                return this.exec.call(this, cmd);
+            };
+            Runtime.exec.overload('java.lang.String').implementation = function (cmd) {
+                if (cmd.indexOf('which su') >= 0 || cmd.indexOf('/su') >= 0 || cmd.indexOf('busybox') >= 0) {
+                    console.log('[*] Runtime.exec() blocked: ' + cmd);
+                    throw new java.io.IOException('Command blocked by UASB');
+                }
+                return this.exec.call(this, cmd);
+            };
+
+            // 2.3) System properties checks (e.g., ro.debuggable)
+            try {
+                var SystemProperties = Java.use('android.os.SystemProperties');
+                SystemProperties.get.overload('java.lang.String').implementation = function (key) {
+                    var v = this.get.call(this, key);
+                    if (key && (key.indexOf('ro.debuggable') >= 0 || key.indexOf('ro.secure') >= 0 || key.indexOf('ro.build.tags') >= 0)) {
+                        console.log('[*] SystemProperties.get(' + key + ') forged');
+                        // Return '0' for debuggable, 'user' for build tags
+                        if (key.indexOf('ro.build.tags') >= 0) return 'release-keys';
+                        return '0';
+                    }
+                    return v;
+                };
+            } catch (e) { /* SystemProperties might not be directly hooked */ }
+
+            // 2.4) RootBeer example (if specific library is used)
+            try {
+                var RootUtil = Java.use('com.scottyab.rootbeer.RootBeer');
+                RootUtil.isRooted.implementation = function() {
+                    console.log("[*] Bypassing RootBeer Root detection: returning false");
+                    return false;
+                };
+            } catch (e) { /* RootBeer not found or different version */ }
+
+            console.log("[+] Root detection bypass hooks installed.");
+        } catch (e) { console.error("[!] Root detection bypass setup failed: " + e); }
+
+
+        // --- 3) Debugger Detection Bypass ---
         try {
             var Debug = Java.use('android.os.Debug');
             Debug.isDebuggerConnected.implementation = function() {
                 console.log("[*] Bypassing debugger detection: returning false");
                 return false;
             };
-        } catch (e) {}
+        } catch (e) { console.warn("[!] Debugger detection bypass setup failed: " + e); }
 
-        // Root Detection Bypass (RootBeer example)
-        try {
-            var RootUtil = Java.use('com.scottyab.rootbeer.RootBeer');
-            RootUtil.isRooted.implementation = function() {
-                console.log("[*] Bypassing RootBeer Root detection: returning false");
-                return false;
-            };
-        } catch (e) {}
-
-        // Emulator Detection Bypass
+        // --- 4) Emulator Detection Bypass ---
         try {
             var Build = Java.use('android.os.Build');
             Build.FINGERPRINT.value = "google/sdk_gphone_x86/generic_x86:11/RSR1.201013.001/6604421:userdebug/dev-keys";
@@ -140,7 +238,9 @@ class FridaBypassManager:
             Build.BRAND.value = "google";
             Build.DEVICE.value = "generic_x86";
             console.log("[*] Emulator detection values overridden");
-        } catch (e) {}
+        } catch (e) { console.warn("[!] Emulator detection bypass setup failed: " + e); }
+
+        console.log("[*] Universal Android Security Bypass Suite active.");
     });
     """
 
@@ -235,4 +335,3 @@ class FridaBypassManager:
             logger.error(f"Failed to inject script: {e}")
             logger.info("Possible causes: Frida-server not running, app crash, incorrect package name, or permissions.")
             return False
-

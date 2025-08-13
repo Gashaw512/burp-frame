@@ -5,13 +5,68 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Author](https://img.shields.io/badge/Author-Gashaw%20Kidanu-orange)](#)
 
-**burp-frame**  is a professional-grade, cross-platform automation tool designed to streamline mobile security assessments on rooted Android devices and emulators. It unifies essential tasks for HTTPS traffic interception and dynamic analysis, including certificate management, global/per-app proxy configuration, Frida server deployment, and advanced SSL pinning/security bypass techniques.
+**burp-frame**  is a professional-grade, cross-platform automation tool meticulously designed to streamline mobile security assessments on rooted Android devices and emulators. It functions as a "one-shot" tester's toolkit 🎯, unifying essential tasks for HTTPS traffic interception and dynamic analysis, encompassing comprehensive certificate management, flexible global and per-application proxy configurations, robust Frida server deployment, and advanced, highly effective SSL pinning and security bypass techniques.
 
-Built for security **security professionals**, **pen testers**, and **mobile developers**, burp-frame automates complex workflows with robust logging and comprehensive command-line interface.
+Built for security **security professionals**, **pen testers**, and **mobile developers**,`burp-frame` automates complex, multi-step workflows with a user-friendly yet powerful command-line interface (CLI), supported by robust logging and cross-platform compatibility.
+
 
 ![burpDrop Workflow](https://via.placeholder.com/800x400?text=BurpDrop+Workflow+Diagram)
 
 ---
+
+
+
+✨ **Key Features**
+
+- **Unified CLI:** A singular, intuitive command-line interface for orchestrating all Android pentesting operations, simplifying complex workflows.
+
+- **Certificate Installation (install module):**
+  - One-command certificate installation of Burp Suite CA certificates directly onto the Android device.
+  - Automates conversion of Burp CA certificates from DER format to the Android-compatible `.0` format, complete with subject hash calculation.
+  - Intelligent deployment: Pushes converted certificates to the traditional `/system/etc/security/cacerts/` path, or leverages the systemless capabilities of Magisk.
+
+- **Magisk Support:** Specifically designed to install certificates seamlessly into the systemless Magisk path, maintaining system integrity.
+
+- **Dry-run mode:** Allows simulation of the entire certificate installation process without making any actual modifications to the device, ideal for testing and verification.
+
+- **Proxy Management (proxy module):**
+  - Flexible global HTTP proxy settings: Easily set and clear system-wide HTTP proxy configurations on the Android device via ADB for comprehensive traffic interception.
+  - (Conceptual) Per-application proxy settings: Provides a framework for managing proxy settings for specific applications, though practical effectiveness may vary across Android versions and app implementations.
+  - Connectivity testing: Includes functionality to test the configured global proxy's connectivity, ensuring your interception setup is active and correctly routing traffic.
+  - Network intelligence: Discover and display active network interfaces and their associated IP addresses on the connected device.
+
+- **Frida Integration (frida module):**
+  - Automated Frida server deployment: Deploys the appropriate frida-server binary to the connected Android device based on its architecture and intelligently attempts to start it in the background.
+  - Process management: List all running processes on the device, and kill processes efficiently by either their PID or package name.
+  - Script injection: Launch target applications with a custom Frida JavaScript script immediately injected, enabling early instrumentation.
+  - Advanced Certificate Re-Pinning Bypass: A specialized Frida capability to inject a custom CA certificate (like your Burp CA) directly into an application's trust store at runtime, effectively bypassing SSL pinning even when traditional certificate installation methods fail.
+
+- **SSL Pinning & Security Bypasses (bypass-ssl & universal-bypass modules):**
+  - Generic SSL Bypass: Facilitates the management (listing, downloading) and application of general-purpose Frida scripts designed to bypass various forms of SSL pinning implemented in Android applications.
+  - Comprehensive Universal Bypass: Deploys a powerful, all-in-one Frida script (enhanced with the latest techniques) to comprehensively bypass multiple crucial security checks, including:
+    - **SSL pinning:** Covering multiple methods including OkHttp, Conscrypt, and HostnameVerifier.
+    - **Root detection:** Bypassing checks via filesystem anomalies, Runtime exec calls, SystemProperties, and common libraries like RootBeer.
+    - **Debugger checks:** Circumventing detection mechanisms for attached debuggers.
+    - **Emulator checks:** Masking indicators that reveal an application is running in an emulated environment.
+
+- **Device Management (device module):**
+  - Essential device control: Remotely reboot the connected Android device.
+  - File system manipulation: Remount the `/system` partition as either read-write (`remount-rw`) or read-only (`remount-ro`), crucial for system-level modifications (requires root).
+  - Device discovery: List all currently connected ADB devices and their properties.
+  - Application lifecycle management: Effortlessly install and uninstall APKs onto the device.
+  - Flexible connectivity: Connect to and disconnect from ADB devices over TCP/IP (e.g., for Wi-Fi debugging).
+
+- **Automation & Usability:**
+  - Automated cleanup: Ensures all temporary certificate files and directories created by the framework are removed upon application exit.
+  - Interactive and intelligent CLI: Provides clear prompts, auto-validation of inputs, and helpful, context-aware messages to guide the user.
+  - Detailed logging: Generates timestamped, categorized logs to a dedicated `logs/` directory, essential for auditing, troubleshooting, and documenting pentesting activities.
+  - **Cross-Platform Compatibility:** Fully supports Windows, macOS, and Linux operating systems.
+
+
+
+
+
+
 
 # ✨ Key Features
 
@@ -60,11 +115,11 @@ Built for security **security professionals**, **pen testers**, and **mobile dev
 # 📦 Requirements
 
 - **Python 3.7+**
-- **ADB (Android Debug Bridge)**
-- **OpenSSL** available in your system's PATH
+- *[ADB (Android Debug Bridge)](https://developer.android.com/studio/releases/platform-tools)**
+- [OpenSSL](https://www.openssl.org/) available in `PATH`
 - **Frida CLI (frida-tools):** Install via `pip install frida-tools` (note: `pip install frida` also covers the Python library requirement).
 - **Frida Server:** Automatically deployed by `burp-frame frida deploy`, but a working internet connection is needed for the initial download.
-- **Rooted Android device or emulator** (e.g., Genymotion, Magisk-patched AVDs)
+- **Rooted Android device or emulator** (e.g., [Genymotion](https://www.genymotion.com/), Magisk-patched AVDs)
 - **Burp Suite CA certificate** exported as `.der` format (for `install` and `frida cert-repin` commands).
 
 ## 📦 Requirements
