@@ -24,7 +24,7 @@ extensions = [
     'sphinx.ext.viewcode',    # To link to the source code
     'sphinx.ext.intersphinx', # For linking to other Sphinx docs
     # If you want to write docs in Markdown:
-    # 'myst_parser',
+    'myst_parser',
 ]
 
 templates_path = ['_templates']
