@@ -55,7 +55,6 @@ Built for security **security professionals**, **pen testers**, and **mobile dev
 
 ## Cross-Platform
 - Supports Windows, macOS, and Linux.
-
 ---
 
 # 📦 Requirements
@@ -67,9 +66,6 @@ Built for security **security professionals**, **pen testers**, and **mobile dev
 - **Frida Server:** Automatically deployed by `burp-frame frida deploy`, but a working internet connection is needed for the initial download.
 - **Rooted Android device or emulator** (e.g., Genymotion, Magisk-patched AVDs)
 - **Burp Suite CA certificate** exported as `.der` format (for `install` and `frida cert-repin` commands).
-
-
-
 
 ## 📦 Requirements
 
@@ -106,8 +102,7 @@ pip install .
 ```bash
 burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
 # For Linux/macOS:
-# burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
-
+burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
 ```
 You can verify your configuration anytime:
 
@@ -123,9 +118,9 @@ Ensure your device is detected by ADB:
 
 3. **Deploy Frida Server**  
 This is required for all Frida-related commands.  
-   ```bash
+```bash
   burp-frame frida deploy
-   ```
+```
 # 📝 Command-Specific Usage
 
 ## install Module: Certificate Installation
