@@ -458,23 +458,6 @@ This module provides easy access to `burp-frame`'s detailed operation logs, esse
 | ❌ ImportError after PyPI install                    | Ensure `pip install burp-frame` completed without errors. If running from source, make sure you ran `pip install .` from the project root (where `pyproject.toml` is). |
 | ❌ TypeError: ArgumentParser.__init__() got an unexpected keyword argument 'formatter' | Update your `cli.py` to use `formatter_class=argparse.RawTextHelpFormatter` instead of `formatter=...` in all `add_parser` calls. |
 
-📚 **FAQ**
-
-### How do I export the certificate from Burp?
-Go to: `Proxy → Options → Import/Export CA Certificate`. Choose DER format and save the file (e.g., `burp.der`).
-
-### Why does burp-frame require root access for certificate installation?
-Android mandates that trusted CA certificates are installed into the system's certificate store, which resides in a protected `/system` partition. Modifying this partition requires root privileges. Magisk provides a systemless way to do this.
-
-### My emulator isn't rooted. What now?
-`burp-frame` requires root access for system-level certificate installation and many advanced Frida operations. Use one of the following:
-- ✅ **Genymotion** (emulators are rooted by default).
-- ✅ **Magisk-patched AVDs** (Android Virtual Devices).
-- ✅ **Custom rooted emulator images**.
-
-### adb remount fails?
-This is usually due to `dm-verity` issues on the device. Ensure the device is rooted and consider disabling `dm-verity` if necessary.
-
 ## 📚 FAQ
 
 -   **How do I export the certificate from Burp?** Go to: **Proxy → Options → Import/Export CA Certificate**. Choose **DER format** and save the file (e.g., `burp.der`).
