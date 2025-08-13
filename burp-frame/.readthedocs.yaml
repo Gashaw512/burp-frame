@@ -11,7 +11,7 @@ build:
   # Specify the tools to be used during the build process.
   tools:
     # Set the Python version for the build. Ensure it's compatible with your project.
-    python: "3.13" # Or "3.9", "3.10", "3.11", "3.12" depending on your preference.
+    python: "3.12" # Or "3.9", "3.10", "3.11", "3.12" depending on your preference.
 
 # Documentation build settings (for Sphinx)
 sphinx:
