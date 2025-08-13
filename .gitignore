@@ -36,4 +36,14 @@ yarn.lock
 burpdrop/scripts/temp_frida_download/
 # Ignore downloaded Frida binaries
 burp-frame/scripts/temp_frida_download/
+build/
+_build/
+.egg-info/
+# Ignore documentation build artifacts
+docs/_build/
+# Ignore Python virtual environment
+venv/
+# Ignore Burp Suite extension files
+burp_frame.jar
+burp_frame.egg-info/
 
