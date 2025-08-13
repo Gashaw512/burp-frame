@@ -164,6 +164,237 @@ For all Frida-related commands to function, the `frida-server` must be running o
 burp-frame frida deploy
 
 ```
+## 📝 Command-Specific Usage
+
+This section provides detailed usage examples for each module within the `burp-frame` framework.
+
+### **`install` Module: Certificate Installation**
+
+This module streamlines the process of installing your Burp Suite CA certificate onto Android devices, crucial for intercepting HTTPS traffic.
+
+-   **Before you begin**: In **Burp Suite**: Navigate to `Proxy → Proxy Settings/Options → Import/Export CA Certificate`. Choose **DER format** and save the exported file (e.g., `burp.der`) to your local machine.
+    
+-   **Standard interactive installation (prompt-based)**: This will guide you through selecting your `.der` certificate file and automatically manage the conversion and deployment process.
+    
+    ```
+    burp-frame install
+    
+    ```
+    
+    > You’ll be prompted to select the certificate file path. The device will automatically reboot once the installation is successful.
+    
+-   **Install for Magisk systemless root**: If your device uses Magisk for systemless root, this option ensures the certificate is installed in the appropriate module path, preserving system integrity.
+    
+    ```
+    burp-frame install --magisk
+    
+    ```
+    
+-   **Simulate installation without making changes (Dry-run mode)**: Useful for testing the installation workflow and verifying prerequisites without modifying the device.
+    
+    ```
+    burp-frame install --dry-run
+    
+    ```
+    
+
+### **`proxy` Module: Device Proxy Configuration**
+
+This module facilitates setting and managing HTTP proxy settings on the Android device, both globally and, conceptually, on a per-application basis.
+
+-   **Set global HTTP proxy**: Configures the entire Android device to route all HTTP/S traffic through your specified proxy (e.g., Burp Suite).
+    
+    ```
+    burp-frame proxy set <YOUR_HOST_IP>:8080
+    # Example: burp-frame proxy set 192.168.1.100:8080
+    
+    ```
+    
+-   **Clear global HTTP proxy**: Removes any existing global HTTP proxy settings, reverting the device to direct internet access.
+    
+    ```
+    burp-frame proxy clear
+    
+    ```
+    
+-   **Get current global HTTP proxy settings**: Retrieves and displays the currently configured global HTTP proxy settings on the Android device.
+    
+    ```
+    burp-frame proxy get
+    
+    ```
+    
+-   **Test global HTTP proxy connection**: Initiates an HTTP request from the device through the currently configured global proxy to a specified URL, reporting on connectivity. Useful for verifying your proxy setup.
+    
+    ```
+    burp-frame proxy test --url http://google.com
+    
+    ```
+    
+-   **Display device IP addresses**: Lists the active network interfaces and their associated IPv4 and IPv6 addresses on the connected Android device, aiding in network configuration and troubleshooting.
+    
+    ```
+    burp-frame proxy ips
+    
+    ```
+    
+-   **(Conceptual) Set per-app proxy**: **Note:** This method attempts to set a proxy for a specific application but is not universally reliable across all apps or Android versions. For robust per-app proxying or certificate pinning bypass, leveraging the `frida` module (e.g., `frida cert-repin`) is often more effective.
+    
+    ```
+    burp-frame proxy app set com.example.app <YOUR_HOST_IP>:8080
+    
+    ```
+    
+-   **(Conceptual) Clear per-app proxy**: Attempts to remove any proxy settings for a specific application previously set by this tool.
+    
+    ```
+    burp-frame proxy app clear com.example.app
+    
+    ```
+    
+-   **(Conceptual) Get per-app proxy**: Attempts to retrieve proxy settings for a specific application.
+    
+    ```
+    burp-frame proxy app get com.example.app
+    
+    ```
+    
+-   **(Conceptual) List apps with proxy settings**: Lists applications that _might_ have specific proxy settings applied by this tool.
+    
+    ```
+    burp-frame proxy app list
+    
+    ```
+    
+
+### **`frida` Module: Dynamic Instrumentation**
+
+This module provides extensive functionalities for deploying, managing, and interacting with Frida on your Android device, enabling powerful dynamic analysis and runtime manipulation.
+
+-   **Deploy Frida server to the device**: This is the first step for any Frida operation. It automatically identifies the correct `frida-server` binary for your device's architecture, pushes it, sets permissions, and starts it.
+    
+    ```
+    burp-frame frida deploy
+    
+    ```
+    
+-   **List all running processes on the device**: Provides an overview of active processes, useful for identifying target applications.
+    
+    ```
+    burp-frame frida ps
+    
+    ```
+    
+-   **Kill a process by PID or package name**: Terminates a specified running process on the device.
+    
+    ```
+    burp-frame frida kill <PID_OR_PACKAGE_NAME>
+    # Example: burp-frame frida kill com.example.app
+    # Example: burp-frame frida kill 12345
+    
+    ```
+    
+-   **Launch an app and inject a custom Frida script**: Starts a specified application and immediately injects your custom Frida JavaScript (`.js`) script into its process.
+    
+    ```
+    burp-frame frida launch <PACKAGE_NAME> --script /path/to/your/custom_frida_script.js
+    
+    ```
+    
+-   **Apply certificate re-pinning bypass (using a custom CA)**: This is an advanced technique for bypassing SSL pinning. It first pushes a local certificate file (e.g., your Burp CA certificate in `.0` format) to the device. Then, it uses a specialized Frida script to hook the application's SSLContext and dynamically inject your custom CA into its trusted certificate store at runtime.
+    
+    ```
+    burp-frame frida cert-repin <PACKAGE_NAME> --cert /path/to/your/burp_certificate_file.0
+    # To attach to an already running app instead of launching:
+    # burp-frame frida cert-repin <PACKAGE_NAME> --cert /path/to/your/burp_certificate_file.0 --attach
+    
+    ```
+    
+    > 💡 **Note**: The `.0` certificate file is an Android-specific format derived from your Burp CA. It can be generated automatically by the `burp-frame install` command, or manually converted from DER using `openssl`.
+    
+
+### **`bypass-ssl` Module: Generic SSL Pinning Bypasses**
+
+This module focuses on managing and applying general-purpose Frida scripts specifically designed for SSL pinning bypasses, complementing the certificate re-pinning method.
+
+-   **List available local SSL bypass scripts**: Shows a list of `.js` scripts available in your local `data/frida_scripts/bypass/` directory that can be applied for SSL pinning bypass.
+    
+    ```
+    burp-frame bypass-ssl list
+    
+    ```
+    
+-   **Download a generic SSL bypass script**: Fetches a commonly used, generic SSL pinning bypass script from a public source and saves it to your local scripts directory.
+    
+    ```
+    burp-frame bypass-ssl download
+    
+    ```
+    
+-   **Apply a local SSL bypass script to a target application**: Injects a chosen local `.js` script (from your scripts directory) into a target application to attempt SSL pinning bypass.
+    
+    ```
+    burp-frame bypass-ssl apply <PACKAGE_NAME> --script universal_bypass.js
+    # To attach to a running app instead of launching:
+    # burp-frame bypass-ssl apply <PACKAGE_NAME> --script universal_bypass.js --target-running
+    
+    ```
+    
+
+### **`universal-bypass` Module: Comprehensive Security Bypasses**
+
+This module provides an incredibly powerful, all-in-one Frida script that combines multiple advanced techniques to bypass a wide array of security checks commonly implemented in Android applications. This includes, but is not limited to, various forms of SSL pinning, sophisticated debugger detection, diverse root detection mechanisms (file system, command execution, property checks), and common emulator detection logic.
+    -   **Apply universal bypass (launches app and injects)**: Starts the target application and immediately injects the comprehensive universal bypass script.
+    
+    ```
+    burp-frame universal-bypass <PACKAGE_NAME>
+    
+    ```
+    
+   -   **Apply universal bypass (attaches to running app and injects)**: Attaches to an already running instance of the target application and injects the comprehensive universal bypass script.
+    
+    ```
+    burp-frame universal-bypass <PACKAGE_NAME> --attach
+    
+    ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 📝 Command-Specific Usage
 
