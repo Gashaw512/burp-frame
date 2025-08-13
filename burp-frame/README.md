@@ -344,19 +344,19 @@ This module focuses on managing and applying general-purpose Frida scripts speci
 ### **`universal-bypass` Module: Comprehensive Security Bypasses**
 
 This module provides an incredibly powerful, all-in-one Frida script that combines multiple advanced techniques to bypass a wide array of security checks commonly implemented in Android applications. This includes, but is not limited to, various forms of SSL pinning, sophisticated debugger detection, diverse root detection mechanisms (file system, command execution, property checks), and common emulator detection logic.
-    -   **Apply universal bypass (launches app and injects)**: Starts the target application and immediately injects the comprehensive universal bypass script.
+   -   **Apply universal bypass (launches app and injects)**: Starts the target application and immediately injects the comprehensive universal bypass script.
     
-    ```
+    
     burp-frame universal-bypass <PACKAGE_NAME>
     
-    ```
+    
     
    -   **Apply universal bypass (attaches to running app and injects)**: Attaches to an already running instance of the target application and injects the comprehensive universal bypass script.
     
-    ```
+    
     burp-frame universal-bypass <PACKAGE_NAME> --attach
     
-    ```
+    
 
 
 
