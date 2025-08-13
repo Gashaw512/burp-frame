@@ -2,9 +2,12 @@
 
 import os
 import sys
-# Ensure Sphinx can find your project's modules for autodoc
-# Adjust path to the *parent* directory of your 'scripts' package
-sys.path.insert(0, os.path.abspath('..')) # Go up one level from docs/ to burp-frame/
+
+# Path to the directory containing your main 'scripts' package.
+# From conf.py (inside burp-frame/docs/), go up one level to burp-frame/.
+current_dir = os.path.dirname(__file__) # This is .../burp-frame/docs/
+project_base_dir = os.path.abspath(os.path.join(current_dir, '..')) # This is .../burp-frame/
+sys.path.insert(0, project_base_dir)
 
 # Project information
 project = 'burp-frame'
