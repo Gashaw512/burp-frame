@@ -99,23 +99,14 @@ Follow these steps to get started quickly with `burp-frame`:
 1. **Configure External Tool Paths**  
 Before `burp-frame` can operate, you must tell it where to find your `adb` and `openssl` executables. You can also configure paths for Frida binaries if they are not in your system's PATH.
 
-**Example for Windows:**
+`Example for Windows:`
    ```bash
    burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
    ```
-**Example for Linux/macOS:**
+`Example for Linux/macOS:`
    ```bash
    burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
    ```
-
-
-1. **Configure Tool Paths**  
-   First, tell `burp-frame` where your `adb` and `openssl` executables are.
-```bash
-burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
-# For Linux/macOS:
-burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
-```
 You can verify your current configuration settings at any time:
 
 ```bash
