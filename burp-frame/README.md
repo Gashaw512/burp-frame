@@ -97,58 +97,74 @@ Built for  **security professionals**, **pen testers**, and **mobile developers*
 ## 🚀 Installation
 
 ### Option 1: From PyPI (recommended)
+
 For the easiest installation, use pip:
 
 ```bash
 pip install burp-frame
+
 ```
+
 ### Option 2: From source
+
 For development or to access the latest features, clone the repository and install from source:
+
 ```bash
-git clone [https://github.com/Gashaw512/android-traffic-interception-guide](https://github.com/Gashaw512/android-traffic-interception-guide)
-cd android-traffic-interception-guide/burp-frame
-pip install .
+git clone https://github.com/Gashaw512/android-traffic-interception-guide
+cd android-traffic-interception-guide/ # Navigate to the project root directory
+pip install . # Installs the 'burp-frame' package from the current directory
 
 ```
-✅ **Tip:** Always use a Python [virtual environment](https://docs.python.org/3/library/venv.html) (`python -m venv .venv` then `source .venv/bin/activate`) to isolate project dependencies and avoid conflicts with system-wide Python packages.
 
+> ✅ **Tip**: Always use a Python [virtual environment](https://docs.python.org/3/library/venv.html "null") (`python -m venv .venv` then `source .venv/bin/activate`) to isolate project dependencies and avoid conflicts with system-wide Python packages.
 
 ## ⚙️ Quick Start
 
 Follow these steps to get started quickly with `burp-frame`:
 
-1. **Configure External Tool Paths**  
-Before `burp-frame` can operate, you must tell it where to find your `adb` and `openssl` executables. You can also configure paths for Frida binaries if they are not in your system's PATH.
+### 1. Configure External Tool Paths
 
-***Example for Windows:***
-   ```bash
-   burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
-   ```
-***Example for Linux/macOS:***
-   ```bash
-   burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
-   ```
+Before `burp-frame` can operate, you must tell it where to find your `adb` and `openssl` executables. You can also configure paths for Frida binaries if they are not in your system's `PATH`.
+
+```
+# Example for Windows:
+burp-frame config --adb "C:\path\to\your\platform-tools\adb.exe" --openssl "C:\path\to\OpenSSL\bin\openssl.exe"
+
+# Example for Linux/macOS:
+burp-frame config --adb "/usr/local/bin/adb" --openssl "/usr/bin/openssl"
+
+```
+
 You can verify your current configuration settings at any time:
 
 ```bash
 burp-frame config
+
 ```
-2. **Connect Your Android Device**  
+
+### 2. Connect Your Android Device
+
 Ensure your Android device (physical or emulator) is properly connected and recognized by ADB.
 
-   - Enable USB debugging on your Android phone or emulator (typically found in Developer Options).
-
-   - Verify your device is detected by ADB:
+-   Enable **USB debugging** on your Android phone or emulator (typically found in Developer Options).
+    
+-   Verify your device is detected by ADB:
+    
 ```bash
-   adb devices
+    adb devices
+    
 ```
+    
 
-3. **Deploy Frida Server**  
-For all Frida-related commands to function, the frida-server must be running on your Android device. `burp-frame` automates this process:
+### 3. Deploy Frida Server
+
+For all Frida-related commands to function, the `frida-server` must be running on your Android device. `burp-frame` automates this process:
 
 ```bash
 burp-frame frida deploy
+
 ```
+
 # 📝 Command-Specific Usage
 
 ## install Module: Certificate Installation
