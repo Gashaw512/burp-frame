@@ -1,17 +1,18 @@
 import json
 import os
 import platform
-from logger import Logger
+import shutil
+from .logger import Logger
 
-logger = Logger(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+logger = Logger()
 
 # --- Constants ---
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 ADB_COMMON_PATHS_WIN = [
     os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Android', 'Sdk', 'platform-tools', 'adb.exe'),
     os.path.join('C:\\', 'platform-tools', 'adb.exe')
-]
-ADB_COMMON_PATHS_NIX = [
+] 
+ADB_COMMON_PATHS_NIX = [ 
     '/usr/bin/adb',
     '/usr/local/bin/adb',
     os.path.join(os.environ.get('HOME', ''), 'Library', 'Android', 'sdk', 'platform-tools', 'adb')
@@ -43,8 +44,6 @@ def save_config(config):
         logger.error(f"Error saving configuration: {str(e)}")
 
 def get_tool_path(tool_name, config):
-    import shutil
-    
     config_path = config.get(f"{tool_name}_path")
     if config_path and os.path.exists(config_path):
         return config_path

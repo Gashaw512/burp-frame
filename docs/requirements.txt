@@ -1,4 +1,4 @@
-sphinx
-sphinx_rtd_theme
-# If you decide to write some Sphinx docs in Markdown:
-# myst-parser
+    sphinx
+    sphinx_rtd_theme
+    myst-parser # <-- ENSURE THIS LINE IS UNCOMMENTED
+    
