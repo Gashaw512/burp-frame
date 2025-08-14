@@ -9,7 +9,7 @@
 
 Built for  **security professionals**, **pen testers**, and **mobile developers**,`burp-frame` automates complex, multi-step workflows with a **user-friendly yet powerful command-line interface (CLI)**, supported by robust logging and cross-platform compatibility.
 
-![burpDrop Workflow](https://via.placeholder.com/800x400?text=BurpDrop+Workflow+Diagram)
+![Burp-Frame Workflow Diagram](docs/images/burp-frame-workflow.gif)
 
 ---
 
