@@ -27,7 +27,7 @@ python:
   # which will find your 'scripts/' package based on pyproject.toml's `[tool.setuptools.packages.find]`
   # and the `name` defined in `[project]` section.
   - method: pip
-    path: burp-frame
+    path: .
   # Step 2: Install documentation-specific requirements.
   # This typically includes Sphinx itself, themes, and any Sphinx extensions.
   # The path is relative to the repository root.
