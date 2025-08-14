@@ -110,8 +110,8 @@ pip install burp-frame
 For development or to access the latest features, clone the repository and install from source:
 
 ```bash
-git clone https://github.com/Gashaw512/android-traffic-interception-guide
-cd android-traffic-interception-guide/ # Navigate to the project root directory
+git clone https://github.com/Gashaw512/burp-frame
+cd burp-frame/ # Navigate to the project root directory
 pip install . # Installs the 'burp-frame' package from the current directory
 
 ```
@@ -501,7 +501,7 @@ For suggestions, feedback, or collaboration inquiries, feel free to reach out: �
 
 ## 📝 License
 
-**burp-frame** is distributed under the **MIT License**. This permissive license allows you to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software. © 2025 [Gashaw Kidanu](https://github.com/Gashaw512/android-traffic-interception-guide "null"). See the [LICENSE](https://www.google.com/search?q=LICENSE "null") file for full details.
+**burp-frame** is distributed under the **MIT License**. This permissive license allows you to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software. © 2025 [Gashaw Kidanu](https://github.com/Gashaw512/burp-frame "null"). See the [LICENSE](https://www.google.com/search?q=LICENSE "null") file for full details.
 
 ## 👋 Final Notes
 

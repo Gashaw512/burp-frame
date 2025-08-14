@@ -12,7 +12,7 @@ Welcome to burp-frame's Documentation!
 
 This is the official documentation for the burp-frame unified Android penetration testing framework.
 
-For more details, visit the `GitHub repository <https://github.com/Gashaw512/android-traffic-interception-guide>`_.
+For more details, visit the `GitHub repository <https://github.com/Gashaw512/burp-frame>`_.
 
 Indices and tables
 ==================

@@ -36,8 +36,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Gashaw512/android-traffic-interception-guide"
-"Bug Tracker" = "https://github.com/Gashaw512/android-traffic-interception-guide/issues"
+"Homepage" = "https://github.com/Gashaw512/burp-frame"
+"Bug Tracker" = "https://github.com/Gashaw512/burp-frame/issues"
 
 [project.scripts]
 # CRUCIAL CHANGE: The console script points to 'scripts.cli:main'
