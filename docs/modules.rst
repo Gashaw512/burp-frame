@@ -4,36 +4,36 @@ burp-frame Modules
 .. toctree::
    :maxdepth: 4
 
-.. automodule:: scripts.cli
+.. automodule:: burp_frame.cli
    :members:
 
-.. automodule:: scripts.logger
+.. automodule:: burp_frame.logger
    :members:
 
-.. automodule:: scripts.utils
+.. automodule:: burp_frame.utils
    :members:
 
-.. automodule:: scripts.config
+.. automodule:: burp_frame.config
    :members:
 
-.. automodule:: scripts.device_manager
+.. automodule:: burp_frame.device_manager
    :members:
 
-.. automodule:: scripts.cert_manager
+.. automodule:: burp_frame.cert_manager
    :members:
 
-.. automodule:: scripts.proxy_manager
+.. automodule:: burp_frame.proxy_manager
    :members:
 
-.. automodule:: scripts.frida_manager
+.. automodule:: burp_frame.frida_manager
    :members:
 
-.. automodule:: scripts.bypass_ssl_manager
+.. automodule:: burp_frame.bypass_ssl_manager
    :members:
 
-.. automodule:: scripts.modules.universal_bypass_manager
+.. automodule:: burp_frame.modules.universal_bypass_manager
    :members:
 
-.. automodule:: scripts.modules.frida_cert_repin_bypass
+.. automodule:: burp_frame.modules.frida_cert_repin_bypass
    :members:
 

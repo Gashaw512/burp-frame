@@ -24,7 +24,7 @@ python:
   # Step 1: Install your main project package.
   # The 'method: pip' indicates using pip for installation.
   # The 'path: .' means install the package located in the current directory (project root),
-  # which will find your 'scripts/' package based on pyproject.toml's `[tool.setuptools.packages.find]`
+  # which will find your 'burp_frame/' package based on pyproject.toml's `[tool.setuptools.packages.find]`
   # and the `name` defined in `[project]` section.
   - method: pip
     path: .

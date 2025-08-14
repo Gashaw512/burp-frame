@@ -3,7 +3,7 @@
 Thumbs.db
 
 # Logs and temp
-scripts/logs/
+burp_frame/logs/
 *.log
 
 # IDE / editor folders
@@ -19,7 +19,7 @@ scripts/logs/
 *.0
 cert.der
 
-# Python cache (if any scripts added later)
+# Python cache (if any burp_frame added later)
 __pycache__/
 *.py[cod]
 
@@ -33,9 +33,9 @@ __pycache__/
 package-lock.json
 yarn.lock
 # Ignore downloaded Frida binaries
-burpdrop/scripts/temp_frida_download/
+# burpdrop/burp_frame/temp_frida_download/
 # Ignore downloaded Frida binaries
-burp-frame/scripts/temp_frida_download/
+burp_frame/temp_frida_download/
 build/
 _build/
 .egg-info/

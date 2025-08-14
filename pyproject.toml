@@ -3,60 +3,48 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "burp-frame"  # This is the name the package that will be on PyPI
-version = "1.0.0"     # Current version of the project
+name = "burp-frame"
+version = "1.0.0"
 authors = [
-  { name="Gashaw Kidanu", email="kidanugashaw@gmail.com" },
+  { name = "Gashaw Kidanu", email = "kidanugashaw@gmail.com" }
 ]
-description = "A unified Android penetration testing framework with features for certificate installation, proxy configuration, Frida instrumentation, and universal bypasses."
-readme = "README.md"  # Points to the README file for PyPI description
+description = "A unified Android penetration testing framework with certificate installation, proxy configuration, Frida instrumentation, and universal bypasses."
+readme = "README.md"
 requires-python = ">=3.7"
-license = { text = "MIT License" } # Correct way to specify MIT License text
+license = { text = "MIT License" }
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
-  "Development Status :: 4 - Beta", # Use 4 for beta, 5 for stable
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Intended Audience :: System Administrators",
   "Topic :: Security",
   "Topic :: Software Development :: Libraries :: Python Modules",
-  "Topic :: Utilities",
+  "Topic :: Utilities"
 ]
 keywords = [
-    "android", "burpsuite", "certificate", "installer", "root",
-    "magisk", "interception", "security", "frida", "ssl-pinning",
-    "bypass", "universal-bypass", "mobile-security", "pentesting"
+  "android", "burpsuite", "certificate", "installer", "root",
+  "magisk", "interception", "security", "frida", "ssl-pinning",
+  "bypass", "universal-bypass", "mobile-security", "pentesting"
 ]
 dependencies = [
-    "requests",
-    "colorama",
-    "frida"
+  "requests",
+  "colorama",
+  "frida"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Gashaw512/burp-frame"
+Homepage = "https://github.com/Gashaw512/burp-frame"
 "Bug Tracker" = "https://github.com/Gashaw512/burp-frame/issues"
 
 [project.scripts]
-# CRUCIAL CHANGE: The console script points to 'scripts.cli:main'
-# because 'scripts' is the top-level package within the source layout.
-burp-frame = "scripts.cli:main"
-
-[tool.setuptools.package-data]
-# This tells setuptools to include non-Python files that are part of your package.
-# Example: if you had a static config file inside 'scripts/data/'
-# "scripts" = ["data/*.json"]
-
-# Your current setup downloads .js files to 'data/' which is outside the 'scripts' package.
-# So, you generally don't need to explicitly list 'config.json' or .js files here unless
-# you decide to bundle default ones directly inside the 'scripts' package.
-
+burp-frame = "burp_frame.cli:main"
 
 [tool.setuptools.packages.find]
-# CRUCIAL CHANGE: This tells setuptools to find packages starting with 'scripts'.
-# It will treat the 'scripts' directory as the root of your Python package.
-where = ["."] # Search in the current directory (burp-frame/)
-include = ["scripts*"] # Include anything starting with 'scripts' (i.e., the 'scripts/' directory)
+where = ["."]
+include = ["burp_frame*"]
 
+[tool.setuptools.package-data]
+"burp_frame" = ["requirements.txt"]

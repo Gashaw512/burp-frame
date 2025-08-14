@@ -1,4 +1,4 @@
     sphinx
     sphinx_rtd_theme
-    myst-parser # <-- ENSURE THIS LINE IS UNCOMMENTED
+    myst-parser
     
