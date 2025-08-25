@@ -1,5 +1,3 @@
-# For reusable utility functions
-
 import os
 import subprocess
 import shutil
@@ -31,7 +29,8 @@ def run_adb_command(adb_path, command):
                           Returns (None, None, 1) if ADB executable is not found.
     """
     try:
-        logger.info(f"Executing ADB command: {adb_path} {' '.join(command)}")
+        # Log the command execution at DEBUG level (only visible in verbose mode)
+        logger.debug(f"Executing ADB command: {adb_path} {' '.join(command)}")
         result = subprocess.run(
             [adb_path] + command,
             stdout=subprocess.PIPE,
@@ -39,12 +38,21 @@ def run_adb_command(adb_path, command):
             text=True, # Decode stdout/stderr as text
             check=False # Do not raise CalledProcessError for non-zero exit codes
         )
-        # Log the command output for debugging
+        
+        # Log stdout and exit code at DEBUG level
         if result.stdout:
-            logger.info(f"  STDOUT: {result.stdout.strip()}")
+            logger.debug(f"  STDOUT: {result.stdout.strip()}")
+        
         if result.stderr:
-            logger.warn(f"  STDERR: {result.stderr.strip()}")
-        logger.info(f"  Exit Code: {result.returncode}")
+            # ADB sometimes prints non-error information to stderr (e.g., "1 file pulled").
+            # Only log as WARN if it's a non-zero exit code or contains typical error keywords.
+            stderr_lower = result.stderr.strip().lower()
+            if result.returncode != 0 or "error" in stderr_lower or "failed" in stderr_lower or "permission denied" in stderr_lower:
+                logger.warn(f"  STDERR: {result.stderr.strip()}")
+            else:
+                logger.debug(f"  STDERR (non-critical): {result.stderr.strip()}")
+        
+        logger.debug(f"  Exit Code: {result.returncode}")
 
         return AdbCommandResult(result.stdout.strip(), result.stderr.strip(), result.returncode)
     except FileNotFoundError:
@@ -69,13 +77,13 @@ def get_tool_path(tool_name):
 
     # 1. Check if path is configured and exists
     if config_path and os.path.exists(config_path):
-        logger.info(f"Found '{tool_name}' at configured path: {config_path}")
+        logger.debug(f"Found '{tool_name}' at configured path: {config_path}") # Changed to debug
         return config_path
     
     # 2. Check if tool is in system's PATH
     path_from_env = shutil.which(tool_name)
     if path_from_env:
-        logger.info(f"Found '{tool_name}' in system PATH: {path_from_env}")
+        logger.debug(f"Found '{tool_name}' in system PATH: {path_from_env}") # Changed to debug
         return path_from_env
     
     # 3. Tool not found

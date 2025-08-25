@@ -1,73 +1,55 @@
-import json
 import os
-import platform
-import shutil
-from .logger import Logger
+import json
 
+from .logger import Logger # Import the Logger (singleton)
+
+# Initialize logger for this module (will get the singleton instance)
 logger = Logger()
 
 # --- Constants ---
+# Define the path for the configuration file
+# It will be located in the same directory as the config.py script
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-ADB_COMMON_PATHS_WIN = [
-    os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Android', 'Sdk', 'platform-tools', 'adb.exe'),
-    os.path.join('C:\\', 'platform-tools', 'adb.exe')
-] 
-ADB_COMMON_PATHS_NIX = [ 
-    '/usr/bin/adb',
-    '/usr/local/bin/adb',
-    os.path.join(os.environ.get('HOME', ''), 'Library', 'Android', 'sdk', 'platform-tools', 'adb')
-]
-OPENSSL_COMMON_PATHS_WIN = [
-    os.path.join('C:\\', 'Program Files', 'OpenSSL-Win64', 'bin', 'openssl.exe'),
-    os.path.join('C:\\', 'Program Files (x86)', 'OpenSSL-Win32', 'bin', 'openssl.exe')
-]
 
 def load_config():
-    config = {}
+    """
+    Loads configuration settings from a JSON file.
+    
+    Returns:
+        dict: A dictionary containing the loaded configuration settings.
+              Returns an empty dictionary if the file does not exist or is invalid.
+    """
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            logger.info("Configuration loaded")
+                logger.debug("Configuration loaded.") # Changed to DEBUG level
+                return config
+        except json.JSONDecodeError:
+            logger.error(f"Error decoding JSON from configuration file: {CONFIG_FILE}. File might be corrupted.")
+            return {}
         except Exception as e:
-            logger.error(f"Error loading config: {str(e)}")
+            logger.error(f"An unexpected error occurred while loading configuration: {e}")
+            return {}
     else:
-        logger.info("No config file found, using default settings")
-    return config
+        logger.info("Configuration file not found. Starting with empty configuration.")
+        return {}
 
-def save_config(config):
+def save_config(config_data):
+    """
+    Saves configuration settings to a JSON file.
+    
+    Args:
+        config_data (dict): A dictionary containing the configuration settings to save.
+    
+    Returns:
+        bool: True if configuration was saved successfully, False otherwise.
+    """
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=2)
+            json.dump(config_data, f, indent=4)
         logger.success(f"Configuration saved to {CONFIG_FILE}")
+        return True
     except Exception as e:
-        logger.error(f"Error saving configuration: {str(e)}")
-
-def get_tool_path(tool_name, config):
-    config_path = config.get(f"{tool_name}_path")
-    if config_path and os.path.exists(config_path):
-        return config_path
-    
-    path_path = shutil.which(tool_name)
-    if path_path:
-        return path_path
-        
-    logger.warn(f"'{tool_name}' not found in PATH or config. Checking common installation directories...")
-    common_paths = []
-    if platform.system() == 'Windows':
-        if tool_name == 'adb':
-            common_paths = ADB_COMMON_PATHS_WIN
-        elif tool_name == 'openssl':
-            common_paths = OPENSSL_COMMON_PATHS_WIN
-    else:
-        if tool_name == 'adb':
-            common_paths = ADB_COMMON_PATHS_NIX
-
-    for path in common_paths:
-        if os.path.exists(path):
-            logger.info(f"Found '{tool_name}' at a common location: {path}")
-            return path
-    
-    logger.error(f"'{tool_name}' executable not found.")
-    logger.error(f"Please install it and add it to your system's PATH, or use the 'burpdrop config' command to specify its location.")
-    return None
+        logger.error(f"Failed to save configuration: {e}")
+        return False

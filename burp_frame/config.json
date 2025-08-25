@@ -1,4 +1,5 @@
 {
   "adb_path": "C:\\platform-tools\\adb.exe",
-  "openssl_path": "C:\\Program Files\\OpenSSL-Win64\\bin\\openssl.exe"
+  "openssl_path": "C:\\Program Files\\OpenSSL-Win64\\bin\\openssl.exe",
+  "frida":"C:\\Users\\socroom\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\frida.exe"
 }
