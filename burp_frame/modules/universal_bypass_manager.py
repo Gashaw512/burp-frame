@@ -5,7 +5,7 @@ import frida # Ensure frida is installed (pip install frida)
 
 # Local imports from your framework's 'scripts' package
 from ..logger import Logger
-from ..utils import get_tool_path, run_adb_command
+from ..utils import get_tool_path, run_command
 from ..device_manager import check_device_connection 
 
 logger = Logger()
@@ -35,7 +35,7 @@ class AndroidDeviceManager:
         Retrieves the PID of a running Android application by package name using ADB's 'pidof'.
         """
         logger.info(f"Attempting to find PID for package '{package_name}' using ADB pidof...")
-        result = run_adb_command(adb_path, ["shell", "pidof", package_name])
+        result = run_command(adb_path, ["shell", "pidof", package_name])
         pid_str = result.stdout.strip()
         if pid_str and pid_str.isdigit():
             pid = int(pid_str)
@@ -51,8 +51,7 @@ class AndroidDeviceManager:
         """
         logger.info(f"Launching app '{package_name}' on device using ADB monkey command...")
         command = ["shell", "monkey", "-p", package_name, "-c", "android.intent.category.LAUNCHER", "1"]
-        result = run_adb_command(
-            , command)
+        result = run_command(self.adb_path, command)
         
         if result.returncode == 0:
             logger.info("App launch command sent successfully. Giving app a moment to start...")

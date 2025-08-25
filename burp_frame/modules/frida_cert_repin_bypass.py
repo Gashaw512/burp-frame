@@ -6,7 +6,7 @@ import frida # Directly import frida as it's a core dependency for this module
 
 # Local imports from your framework's 'scripts' package
 from ..logger import Logger
-from ..utils import get_tool_path, run_adb_command
+from ..utils import get_tool_path, run_command
 from ..device_manager import check_device_connection # Need device check for this module
 
 logger = Logger()
@@ -104,7 +104,7 @@ def _push_cert_to_device(local_cert_path):
 
     logger.info(f"Pushing certificate from '{local_cert_path}' to '{device_cert_path}' on device...")
     
-    result = run_adb_command(adb_path, ["push", local_cert_path, device_cert_path])
+    result = run_command(adb_path, ["push", local_cert_path, device_cert_path])
     
     if result.returncode == 0:
         logger.success(f"Certificate successfully pushed to {device_cert_path}.")
@@ -157,7 +157,7 @@ def apply_frida_cert_repin_bypass(package_name: str, local_cert_path: str, launc
     if launch_app:
         logger.info(f"Attempting to launch app '{package_name}' for injection...")
         # Use adb to launch the app
-        launch_result = run_adb_command(adb_path, ["shell", "monkey", "-p", package_name, "-c", "android.intent.category.LAUNCHER", "1"])
+        launch_result = run_command(adb_path, ["shell", "monkey", "-p", package_name, "-c", "android.intent.category.LAUNCHER", "1"])
         if launch_result.returncode != 0:
             logger.error(f"Failed to launch app {package_name}. ADB stderr: {launch_result.stderr}")
             return False

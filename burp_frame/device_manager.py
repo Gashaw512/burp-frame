@@ -7,7 +7,7 @@ import shutil # For rmtree
 import posixpath # Import posixpath for explicit forward-slash path joining
 
 from .logger import Logger
-from .utils import run_adb_command, get_tool_path, TEMP_CERT_DIR
+from .utils import run_command, get_tool_path, TEMP_CERT_DIR
 
 logger = Logger() # Corrected: Directly get the singleton Logger instance
 
@@ -29,7 +29,7 @@ def check_device_connection(adb_path):
         bool: True if a device is connected and ready, False otherwise.
     """
     logger.info("Checking device connection...")
-    result = run_adb_command(adb_path, ["get-state"])
+    result = run_command(adb_path, ["get-state"])
 
     if result.returncode == 0 and "device" in result.stdout.strip():
         logger.success("✓ Device connected and ready.")
@@ -53,7 +53,7 @@ def get_android_version(adb_path):
         str or None: The Android version (e.g., "11", "12"), or None on failure.
     """
     logger.info("Detecting Android version...")
-    result = run_adb_command(adb_path, ["shell", "getprop", "ro.build.version.release"])
+    result = run_command(adb_path, ["shell", "getprop", "ro.build.version.release"])
     if result.returncode == 0 and result.stdout:
         version = result.stdout.strip()
         logger.info(f"Android version detected: {version}")
@@ -73,7 +73,7 @@ def _get_device_tool_path(tool_name, common_paths):
         return None
 
     for path in common_paths:
-        result = run_adb_command(adb_path, ["shell", f"test -x {path} && echo EXISTS"])
+        result = run_command(adb_path, ["shell", f"test -x {path} && echo EXISTS"])
         if result.returncode == 0 and "EXISTS" in result.stdout:
             logger.info(f"Found '{tool_name}' at: {path}")
             return path
@@ -84,7 +84,7 @@ def _is_partition_mounted_ro(adb_path, mount_point):
     """
     Checks if a given mount point is currently mounted as read-only.
     """
-    result = run_adb_command(adb_path, ["shell", "cat /proc/mounts"])
+    result = run_command(adb_path, ["shell", "cat /proc/mounts"])
     if result.returncode == 0 and result.stdout:
         for line in result.stdout.splitlines():
             parts = line.split()
@@ -108,7 +108,7 @@ def _get_system_mount_points():
         return []
 
     logger.info("Detecting potential /system mount points from /proc/mounts...")
-    result = run_adb_command(adb_path, ["shell", "cat /proc/mounts"])
+    result = run_command(adb_path, ["shell", "cat /proc/mounts"])
 
     mount_points = set()
     if result.returncode == 0 and result.stdout:
@@ -132,7 +132,7 @@ def _get_system_mount_points():
         candidates.append('/system_root')
     if '/' in mount_points:
         # Check if '/' is a primary rootfs mount, not just a tempfs or overlay
-        stdout_root_mount, stderr_root_mount, returncode_root_mount = run_adb_command(adb_path, ["shell", "grep -E '^/dev/root|rootfs' /proc/mounts | grep ' / '"])
+        stdout_root_mount, stderr_root_mount, returncode_root_mount = run_command(adb_path, ["shell", "grep -E '^/dev/root|rootfs' /proc/mounts | grep ' / '"])
 
         if returncode_root_mount == 0 and stdout_root_mount:
             if '/' not in candidates: # Avoid duplicates if already added by other logic
@@ -168,7 +168,7 @@ def remount_system(mode="rw"):
 
     # Strategy 1: Try direct 'adb remount' command (often the simplest and most effective)
     logger.info("Trying 'adb remount' command first (high-level, often works)..")
-    result = run_adb_command(adb_path, ["remount"])
+    result = run_command(adb_path, ["remount"])
     if result.returncode == 0 and "succeeded" in result.stdout.lower():
         logger.success(f"✓ /system remounted as read-{mode} via 'adb remount'.")
         return True
@@ -180,10 +180,10 @@ def remount_system(mode="rw"):
         # If it failed for RW, this could be because adbd isn't running as root. Try `adb root`
         if mode == "rw" and "adbd cannot run as root" in result.stderr.lower():
             logger.info("Attempting 'adb root' and re-trying 'adb remount'...")
-            root_result = run_adb_command(adb_path, ["root"])
+            root_result = run_command(adb_path, ["root"])
             if root_result.returncode == 0:
                 time.sleep(2) # Give adbd time to restart as root
-                re_remount_result = run_adb_command(adb_path, ["remount"])
+                re_remount_result = run_command(adb_path, ["remount"])
                 if re_remount_result.returncode == 0 and "succeeded" in re_remount_result.stdout.lower():
                     logger.success(f"✓ /system remounted as read-write via 'adb root' then 'adb remount'.")
                     return True
@@ -232,7 +232,7 @@ def remount_system(mode="rw"):
             cmd = template.format(mode=mode, mp=mp)
             # Use shlex.quote to properly quote the inner command for su -c, especially if it contains spaces
             full_su_cmd = f"{su_path} -c {shlex.quote(cmd)}"
-            result = run_adb_command(adb_path, ["shell", full_su_cmd])
+            result = run_command(adb_path, ["shell", full_su_cmd])
 
             # Success check: exit code 0 and common success indicators in stdout/stderr
             if result.returncode == 0 and \
@@ -348,7 +348,7 @@ def _get_installed_cert_fingerprints_on_device():
 
     try:
         list_cmd = ["shell", f"ls -1 {DEVICE_CERT_DIR}"]
-        ls_result = run_adb_command(adb_path, list_cmd)
+        ls_result = run_command(adb_path, list_cmd)
 
         if ls_result.returncode == 0 and ls_result.stdout:
             device_cert_filenames = [f.strip() for f in ls_result.stdout.strip().splitlines() if f.strip().endswith(".0")]
@@ -364,7 +364,7 @@ def _get_installed_cert_fingerprints_on_device():
                 device_file_path = posixpath.join(DEVICE_CERT_DIR, cert_filename)
                 local_temp_cert_path = os.path.join(temp_pull_dir, cert_filename)
 
-                pull_result = run_adb_command(adb_path, ["pull", device_file_path, local_temp_cert_path])
+                pull_result = run_command(adb_path, ["pull", device_file_path, local_temp_cert_path])
                 
                 if pull_result.returncode == 0 and os.path.exists(local_temp_cert_path):
                     fingerprint = _calculate_local_cert_fingerprint(local_temp_cert_path)
@@ -442,7 +442,7 @@ def perform_install_certificate(adb_path, cert_prepared_file, cert_hash, dry_run
             return True
 
         logger.info("Checking for Magisk/Root access...")
-        su_test_result = run_adb_command(adb_path, ["shell", "su", "-c", "echo 'root_ok'"])
+        su_test_result = run_command(adb_path, ["shell", "su", "-c", "echo 'root_ok'"])
         if su_test_result.returncode != 0 or "root_ok" not in su_test_result.stdout.strip():
             logger.error("❌ **Magisk/Root access not detected or not granted.** Cannot proceed with Magisk installation.")
             logger.info("Please ensure Magisk is installed, enabled, and ADB has root permissions (`adb root` or Magisk prompts).")
@@ -450,7 +450,7 @@ def perform_install_certificate(adb_path, cert_prepared_file, cert_hash, dry_run
         logger.success("✓ **Magisk/Root access detected.**")
 
         logger.info(f"Creating Magisk module directory: **{remote_magisk_module_dir}**...")
-        result = run_adb_command(adb_path, ["shell", "su", "-c", f"mkdir -p {remote_magisk_module_dir}/system/etc/security/cacerts"])
+        result = run_command(adb_path, ["shell", "su", "-c", f"mkdir -p {remote_magisk_module_dir}/system/etc/security/cacerts"])
         if result.returncode != 0:
             logger.error(f"❌ Failed to create Magisk module directory. ADB stderr: {result.stderr.strip()}")
             return False
@@ -459,16 +459,16 @@ def perform_install_certificate(adb_path, cert_prepared_file, cert_hash, dry_run
         logger.info(f"Copying certificate to Magisk module: **{remote_cert_path_in_module}**...")
         temp_remote_cert_name = os.path.basename(cert_prepared_file)
         temp_remote_cert_path = f"/sdcard/{temp_remote_cert_name}"
-        result = run_adb_command(adb_path, ["push", cert_prepared_file, temp_remote_cert_path])
+        result = run_command(adb_path, ["push", cert_prepared_file, temp_remote_cert_path])
         if result.returncode != 0:
             logger.error(f"❌ Failed to push certificate to temporary location. ADB stderr: {result.stderr.strip()}")
             return False
         
         move_cmd = f"mv {temp_remote_cert_path} {remote_cert_path_in_module}"
-        result = run_adb_command(adb_path, ["shell", "su", "-c", move_cmd])
+        result = run_command(adb_path, ["shell", "su", "-c", move_cmd])
         if result.returncode != 0:
             logger.error(f"❌ Failed to move certificate to Magisk module path. ADB stderr: {result.stderr.strip()}")
-            run_adb_command(adb_path, ["shell", f"rm {temp_remote_cert_path}"])
+            run_command(adb_path, ["shell", f"rm {temp_remote_cert_path}"])
             return False
         logger.success(f"✓ **Certificate copied into Magisk module.**")
 

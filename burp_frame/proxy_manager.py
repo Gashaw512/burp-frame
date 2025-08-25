@@ -4,7 +4,7 @@ import json # Used for potential future state management (e.g., per-app proxy tr
 import time # For potential delays in testing
 
 from .logger import Logger
-from .utils import run_adb_command, get_tool_path # Import get_tool_path and run_adb_command from utils
+from .utils import run_command, get_tool_path # Import get_tool_path and run_command from utils
 
 logger = Logger()
 
@@ -58,7 +58,7 @@ def set_global_proxy(host, port='8080'):
     description = f"setting global HTTP proxy to {proxy_string}"
     
     logger.info(f"Attempting {description}...")
-    result = run_adb_command(adb_path, command)
+    result = run_command(adb_path, command)
 
     if result.returncode == 0:
         logger.success(f"Successfully {description}.")
@@ -84,7 +84,7 @@ def clear_global_proxy():
     description = "reverting global HTTP proxy"
     logger.info("Attempting to revert device proxy settings...")
     
-    result = run_adb_command(adb_path, command)
+    result = run_command(adb_path, command)
 
     if result.returncode == 0:
         logger.success(f"Successfully {description}.")
@@ -109,7 +109,7 @@ def get_current_global_proxy_settings():
 
     logger.info("Retrieving current global proxy settings...")
     command = ["shell", "settings", "get", "global", "http_proxy"]
-    result = run_adb_command(adb_path, command)
+    result = run_command(adb_path, command)
     
     if result.returncode == 0 and result.stdout:
         proxy_setting = result.stdout.strip()
@@ -150,7 +150,7 @@ def test_proxy_connection(test_url="http://google.com"):
     # and -v for verbose output that can help debug.
     # Adding a timeout for the curl command.
     command = ["shell", f"curl --proxy {current_proxy} --connect-timeout 5 {test_url}"]
-    result = run_adb_command(adb_path, command) # Verbose output from curl will go to stdout/stderr
+    result = run_command(adb_path, command) # Verbose output from curl will go to stdout/stderr
 
     if result.returncode == 0:
         logger.success(f"Proxy test to {test_url} succeeded!")
@@ -177,7 +177,7 @@ def get_device_ip_addresses():
 
     logger.info("Retrieving device IP addresses (Wi-Fi, Mobile, etc.)...")
     command = ["shell", "ip", "addr", "show"]
-    result = run_adb_command(adb_path, command)
+    result = run_command(adb_path, command)
 
     if result.returncode == 0 and result.stdout:
         ip_info = result.stdout.strip()
@@ -254,7 +254,7 @@ def set_app_proxy(package_name, host, port='8080'):
                    "--es", "http_proxy", proxy_string] # --es for string extra
 
     logger.info(f"Executing conceptual per-app proxy command: {' '.join(command_alt)}")
-    result = run_adb_command(adb_path, command_alt) # Using the more general command_alt
+    result = run_command(adb_path, command_alt) # Using the more general command_alt
 
     if result.returncode == 0:
         logger.success(f"Attempted to launch '{package_name}' with proxy. Verify manually by checking app's traffic.")
@@ -279,7 +279,7 @@ def clear_app_proxy(package_name):
     if not adb_path: return False
 
     logger.info(f"Attempting to force stop '{package_name}' to clear potential transient proxy settings.")
-    result = run_adb_command(adb_path, ["shell", "am", "force-stop", package_name])
+    result = run_command(adb_path, ["shell", "am", "force-stop", package_name])
     if result.returncode == 0:
         logger.success(f"Successfully force-stopped '{package_name}'.")
         return True

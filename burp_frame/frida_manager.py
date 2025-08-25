@@ -8,7 +8,8 @@ import subprocess # Explicitly import subprocess for clarity in run_frida_script
 import re # Import regex for parsing ps output
 
 from .logger import Logger
-from .utils import run_adb_command, get_tool_path # Import utils functions
+from .utils import run_command, get_tool_path # Import utils functions
+
 
 logger = Logger()
 
@@ -33,7 +34,7 @@ def _get_device_arch(adb_path):
     """
     logger.info("Detecting device architecture for Frida...")
     # Command to get CPU ABI (Application Binary Interface)
-    result = run_adb_command(adb_path, ["shell", "getprop", "ro.product.cpu.abi"])
+    result = run_command(adb_path, ["shell", "getprop", "ro.product.cpu.abi"])
     if result.returncode == 0 and result.stdout:
         abi = result.stdout.strip()
         logger.info(f"Device ABI detected: {abi}")
@@ -199,7 +200,7 @@ def deploy_frida_server():
     # Optional: Check if Frida server is already running on device and kill it for a clean deploy
     logger.info("Checking for existing Frida server processes on device...")
     # Use 'ps -A | grep' for more robust detection of running processes
-    check_running_result = run_adb_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
+    check_running_result = run_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
     
     running_pids = []
     if check_running_result.returncode == 0:
@@ -216,7 +217,7 @@ def deploy_frida_server():
         kill_succeeded = True
         for pid in running_pids:
             kill_command = ["shell", "kill", "-9", pid] 
-            single_kill_result = run_adb_command(adb_path, kill_command)
+            single_kill_result = run_command(adb_path, kill_command)
             if single_kill_result.returncode != 0:
                 logger.error(f"Failed to kill PID {pid}. ADB stderr: {single_kill_result.stderr}")
                 kill_succeeded = False
@@ -228,14 +229,14 @@ def deploy_frida_server():
             logger.error(f"Failed to kill all existing Frida server(s) (PID(s) {pid_str}). Proceeding, but may cause issues.")
 
     logger.info(f"Pushing Frida server from '{frida_server_local_path}' to device '{remote_path}'...")
-    push_result = run_adb_command(adb_path, ["push", frida_server_local_path, remote_path])
+    push_result = run_command(adb_path, ["push", frida_server_local_path, remote_path])
     if push_result.returncode != 0:
         logger.error(f"Failed to push Frida server. ADB stderr: {push_result.stderr}")
         return False
     logger.success("Frida server pushed successfully.")
 
     logger.info(f"Setting executable permissions for '{remote_path}'...")
-    chmod_result = run_adb_command(adb_path, ["shell", "chmod", "755", remote_path])
+    chmod_result = run_command(adb_path, ["shell", "chmod", "755", remote_path])
     if chmod_result.returncode != 0:
         logger.error(f"Failed to set permissions for Frida server. ADB stderr: {chmod_result.stderr}")
         return False
@@ -243,13 +244,13 @@ def deploy_frida_server():
 
     logger.info("Starting Frida server on device in background (output redirected to /dev/null)...")
     start_command_str = f"nohup {remote_path} >/dev/null 2>&1 &"
-    start_result = run_adb_command(adb_path, ["shell", start_command_str])
+    start_result = run_command(adb_path, ["shell", start_command_str])
     
     if start_result.returncode == 0:
         logger.success("Frida server initiation command sent to device. Verifying process status...")
         time.sleep(3) # Give it a bit more time to start up
         
-        check_running_result = run_adb_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
+        check_running_result = run_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
         
         verified_pids = []
         if check_running_result.returncode == 0:
@@ -288,7 +289,7 @@ def list_processes():
 
     logger.info("Retrieving list of running processes on the device...")
     # Using 'ps -A' or 'ps -ef' for comprehensive listing. 'ps -A' is generally simpler.
-    result = run_adb_command(adb_path, ["shell", "ps", "-A"]) # '-A' for all processes
+    result = run_command(adb_path, ["shell", "ps", "-A"]) # '-A' for all processes
 
     processes = []
     if result.returncode == 0 and result.stdout:
@@ -360,13 +361,13 @@ def kill_frida_process(target):
     # Attempt to kill using ADB shell kill command
     logger.info(f"Executing ADB shell command to kill PID {target_pid}...")
     kill_command = ["shell", "kill", "-9", target_pid] # Use -9 for forceful termination
-    result = run_adb_command(adb_path, kill_command)
+    result = run_command(adb_path, kill_command)
 
     if result.returncode == 0:
         logger.success(f"Successfully killed process with PID {target_pid} ({target}).")
         time.sleep(1) # Give it a moment to terminate
         # Optional: Verify it's no longer running
-        check_result = run_adb_command(adb_path, ["shell", f"ps -A | grep {target_pid}"])
+        check_result = run_command(adb_path, ["shell", f"ps -A | grep {target_pid}"])
         if check_result.returncode != 0 or target_pid not in check_result.stdout:
             logger.info("Process successfully verified as terminated.")
             return True
@@ -412,7 +413,7 @@ def launch_application_with_script(package_name, script_path):
         return False
     
     # Check if Frida server is running before attempting to launch with script
-    check_frida_running_result = run_adb_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
+    check_frida_running_result = run_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
     if check_frida_running_result.returncode != 0 or FRIDA_SERVER_NAME_PREFIX not in check_frida_running_result.stdout:
         logger.error("Frida server is not running on the device. Please run 'burp-frame frida deploy' first.")
         return False
@@ -498,7 +499,7 @@ def run_frida_script(script_path, target=None):
         return False
     
     # Check if Frida server is running before attempting to run a script
-    check_frida_running_result = run_adb_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
+    check_frida_running_result = run_command(adb_path, ["shell", f"ps -A | grep {FRIDA_SERVER_NAME_PREFIX}"])
     if check_frida_running_result.returncode != 0 or FRIDA_SERVER_NAME_PREFIX not in check_frida_running_result.stdout:
         logger.error("Frida server is not running on the device. Please run 'burp-frame frida deploy' first.")
         return False
