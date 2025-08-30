@@ -1,70 +1,121 @@
-# For reusable utility functions
+# burp_frame/utils.py
 
 import os
 import subprocess
 import shutil
+import tempfile
+import sys
+import shlex  # For robust command quoting
 from collections import namedtuple
+from typing import List, Optional
 
-from .logger import Logger # Import the Logger (singleton)
-from .config import load_config # Import configuration loading
+from .logger import Logger
+from .config import load_config
 
-# Initialize logger for this module (will get the singleton instance)
 logger = Logger()
 
 # --- Constants ---
-# Define TEMP_CERT_DIR here as it's a general temporary file location related to cleanup
-TEMP_CERT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_cert")
+# Define the main temporary directory for the framework
+FRAMEWORK_TEMP_DIR = os.path.join(tempfile.gettempdir(), "burp-frame")
+TEMP_CERT_DIR = os.path.join(FRAMEWORK_TEMP_DIR, "temp_certs")
 
 # --- Named Tuple for Command Results ---
-# Define this globally in utils.py as it's a generic structure for command outputs
-AdbCommandResult = namedtuple('AdbCommandResult', ['stdout', 'stderr', 'returncode'])
+# A generic and reusable structure for all command outputs.
+CommandResult = namedtuple('CommandResult', ['stdout', 'stderr', 'returncode'])
 
-def run_adb_command(adb_path, command):
+# --- Core Utility Functions ---
+
+def create_temp_dir() -> None:
     """
-    Executes an ADB command using subprocess and returns a named tuple with results.
-    This function is a core utility for any module needing to interact with ADB.
-    Args:
-        adb_path (str): The absolute path to the ADB executable.
-        command (list): A list of strings representing the ADB subcommand and its arguments.
-    Returns:
-        AdbCommandResult: A named tuple containing stdout, stderr, and returncode.
-                          Returns (None, None, 1) if ADB executable is not found.
+    Creates the main temporary directory for the framework if it doesn't exist.
     """
     try:
-        logger.info(f"Executing ADB command: {adb_path} {' '.join(command)}")
+        os.makedirs(FRAMEWORK_TEMP_DIR, exist_ok=True)
+        logger.debug(f"Ensured framework temporary directory exists at: {FRAMEWORK_TEMP_DIR}")
+    except OSError as e:
+        logger.error(f"Failed to create temporary directory at {FRAMEWORK_TEMP_DIR}: {e}")
+
+def run_command(command: List[str], timeout: int = 300) -> CommandResult:
+    """
+    Executes a shell command and returns a named tuple with results.
+    This is a centralized function for all command execution.
+
+    Args:
+        command (list): A list of strings representing the command and its arguments.
+        timeout (int): The maximum time in seconds to wait for the command to complete.
+
+    Returns:
+        CommandResult: A named tuple containing stdout, stderr, and returncode.
+    """
+    command_str = ' '.join(shlex.quote(arg) for arg in command)
+    logger.info(f"Executing command: {command_str}")
+
+    try:
         result = subprocess.run(
-            [adb_path] + command,
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True, # Decode stdout/stderr as text
-            check=False # Do not raise CalledProcessError for non-zero exit codes
+            text=True,
+            check=False,
+            timeout=timeout,
         )
-        # Log the command output for debugging
+
         if result.stdout:
             logger.info(f"  STDOUT: {result.stdout.strip()}")
         if result.stderr:
             logger.warn(f"  STDERR: {result.stderr.strip()}")
         logger.info(f"  Exit Code: {result.returncode}")
 
-        return AdbCommandResult(result.stdout.strip(), result.stderr.strip(), result.returncode)
-    except FileNotFoundError:
-        logger.error(f"ADB executable not found at '{adb_path}'. Please ensure ADB is installed and configured correctly.")
-        logger.info("Check your 'burp-frame config --adb <path>' setting.")
-        return AdbCommandResult(None, None, 1)
-    except Exception as e:
-        logger.error(f"An unexpected error occurred while running ADB command: {e}")
-        return AdbCommandResult(None, None, 1)
+        return CommandResult(result.stdout.strip(), result.stderr.strip(), result.returncode)
 
-def get_tool_path(tool_name):
+    except FileNotFoundError:
+        logger.error(f"Executable not found: '{command[0]}'. Please check your configuration and system PATH.")
+        return CommandResult("", "Executable not found", 1)
+    except PermissionError:
+        logger.error(f"Permission denied to execute: '{command[0]}'. Please check file permissions.")
+        return CommandResult("", "Permission denied", 1)
+    except subprocess.TimeoutExpired:
+        logger.error(f"Command timed out after {timeout} seconds.")
+        return CommandResult("", "Command timed out", 1)
+    except OSError as e:
+        logger.error(f"OS error while running command '{command_str}': {e}")
+        return CommandResult("", str(e), 1)
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while running command '{command_str}': {e}", exc_info=sys.exc_info())
+        return CommandResult("", "An unexpected error occurred", 1)
+
+def run_adb_command(adb_path: str, command: List[str]) -> CommandResult:
+    """
+    A specialized wrapper for running ADB commands.
+    It constructs the full command list and passes it to the generic `run_command`.
+    
+    Args:
+        adb_path (str): The absolute path to the ADB executable.
+        command (list): A list of strings representing the ADB subcommand and its arguments.
+
+    Returns:
+        CommandResult: A named tuple with stdout, stderr, and returncode.
+    """
+    # Defensive check to ensure a valid ADB path is provided before running.
+    if not adb_path or not os.path.exists(adb_path):
+        logger.error(f"ADB executable not found at '{adb_path}'. Cannot execute command.")
+        return CommandResult(None, "ADB path not found or invalid.", 1)
+        
+    full_command = [adb_path] + command
+    return run_command(full_command)
+
+def get_tool_path(tool_name: str) -> Optional[str]:
     """
     Retrieves the absolute path for a specified external tool (e.g., 'adb', 'openssl').
-    It first checks the saved configuration, then system's PATH.
+    It first checks the saved configuration, then the system's PATH.
+
     Args:
         tool_name (str): The name of the tool (e.g., 'adb', 'openssl').
+
     Returns:
         str or None: The absolute path to the tool, or None if not found.
     """
-    config = load_config() # Load the global configuration
+    config = load_config()
     config_path = config.get(f"{tool_name}_path")
 
     # 1. Check if path is configured and exists
@@ -83,14 +134,13 @@ def get_tool_path(tool_name):
     logger.error(f"Please install '{tool_name}' and add it to your system's PATH, or use 'burp-frame config --{tool_name} /path/to/tool' to specify its location.")
     return None
 
-def cleanup_temp_files():
+def cleanup_temp_files() -> None:
     """
-    Removes temporary files and directories created by the framework, especially certs.
-    This should be registered to run on application exit.
+    Removes temporary files and directories created by the framework.
     """
-    if os.path.exists(TEMP_CERT_DIR):
+    if os.path.exists(FRAMEWORK_TEMP_DIR):
         try:
-            shutil.rmtree(TEMP_CERT_DIR)
-            logger.info("Cleaned temporary certificate files.")
+            shutil.rmtree(FRAMEWORK_TEMP_DIR)
+            logger.info("Cleaned temporary files.")
         except Exception as e:
-            logger.error(f"Cleanup of temporary files failed: {str(e)}")
+            logger.error(f"Cleanup of temporary files failed: {e}")

@@ -93,11 +93,11 @@ def _install_flow(args, config):
         logger.error("Required tools (ADB or OpenSSL) not found/configured. Please run 'burp-frame config'.")
         return False
 
-    if not check_device_connection(adb_path):
+    if not check_device_connection():
         logger.error("No Android device detected or device is not ready.")
         return False
 
-    android_version = get_android_version(adb_path)
+    android_version = get_android_version()
     if android_version:
         try:
             if float(android_version) >= 7.0:
@@ -122,7 +122,7 @@ def _install_flow(args, config):
         return False
     
 
-    if perform_install_certificate(adb_path, cert_prepared_file, cert_hash, args.dry_run, args.magisk):
+    if perform_install_certificate(cert_prepared_file, cert_hash, args.dry_run, args.magisk):
         logger.success("\n" + "="*60)
         if args.dry_run:
             logger.success("DRY RUN COMPLETE: No changes were made.".center(60))
@@ -180,7 +180,6 @@ def _proxy_flow(args, config):
             return list_apps_with_proxy_settings_by_tool()
 
     return False
-
 
 def _frida_flow(args, config):
     """Handles the 'frida' command logic (Frida deployment and interaction)."""

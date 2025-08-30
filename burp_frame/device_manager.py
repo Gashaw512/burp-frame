@@ -1,57 +1,58 @@
+# burp_frame/device_manager.py
+
 import time
-import re # Already imported, just re-iterating for clarity
-import os # For os.path.basename in install_apk and others
+import re
+import os
+import shlex
+import shutil
 
 from .logger import Logger
-# No explicit import of config or get_tool_path from utils as they are passed directly
-from .utils import run_adb_command, get_tool_path # Import get_tool_path and run_adb_command from utils
+# Import the central command runner and tool path finder
+from .utils import get_tool_path, run_command
 
 logger = Logger()
 
 # --- Constants ---
-# These are moved to device_manager as they are directly used by perform_install_certificate within this module.
+# These are moved to a more appropriate scope within the module or are handled dynamically.
 DEVICE_CERT_DIR = "/system/etc/security/cacerts"
-MAGISK_CERT_DIR = "/data/adb/modules/system_ca_cert_mojito/system/etc/security/cacerts"
 
+# --- Device Status & Information Functions ---
 
-def check_device_connection(adb_path):
+def check_device_connection():
     """
     Checks if an Android device is connected via ADB and ready.
     
-    Args:
-        adb_path (str): Path to the ADB executable.
-        
     Returns:
         bool: True if a device is connected and ready, False otherwise.
     """
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return False
+
     logger.info("Checking device connection...")
-    result = run_adb_command(adb_path, ["get-state"])
+    result = run_command([adb_path, "get-state"])
     
-    # 'adb get-state' output is usually "device", "offline", "unknown"
-    if result.returncode == 0 and "device" in result.stdout.strip():
+    if result.returncode == 0 and "device" in result.stdout:
         logger.success("✓ Device connected and ready.")
         return True
     else:
-        logger.error(f"❌ No device detected or device is not ready. ADB output: {result.stdout.strip()}")
-        if result.stderr:
-            logger.error(f"ADB stderr: {result.stderr.strip()}")
+        logger.error(f"❌ No device detected or device is not ready. ADB output: {result.stdout}")
         logger.info("Please ensure your device is connected, ADB debugging is enabled, and drivers are installed.")
-        logger.info("For remote devices, ensure 'adb tcpip' is enabled on the device and firewall allows connection.")
         return False
 
-def get_android_version(adb_path):
+def get_android_version():
     """
     Detects the Android version of the connected device.
     
-    Args:
-        adb_path (str): Path to the ADB executable.
-        
     Returns:
         str or None: The Android version (e.g., "11", "12"), or None on failure.
     """
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return None
+
     logger.info("Detecting Android version...")
-    # Using 'getprop ro.build.version.release' is robust for most Android versions
-    result = run_adb_command(adb_path, ["shell", "getprop", "ro.build.version.release"])
+    result = run_command([adb_path, "shell", "getprop", "ro.build.version.release"])
     if result.returncode == 0 and result.stdout:
         version = result.stdout.strip()
         logger.info(f"Android version detected: {version}")
@@ -60,221 +61,217 @@ def get_android_version(adb_path):
         logger.error(f"Failed to detect Android version. ADB stderr: {result.stderr}")
         return None
 
-def perform_install_certificate(adb_path, cert_prepared_file, cert_hash, dry_run=False, use_magisk=False):
+# --- Certificate Installation & Management Functions ---
+
+def perform_install_certificate(cert_prepared_file, cert_hash, dry_run=False, use_magisk=False):
     """
     Installs the prepared CA certificate onto the Android device.
     This function handles both standard system installation (requires root and remount)
     and Magisk systemless installation.
     
     Args:
-        adb_path (str): Path to the ADB executable.
-        cert_prepared_file (str): Local path to the prepared certificate file (e.g., 9a4a7530.0).
-        cert_hash (str): The hash of the certificate (used for Magisk module name and file naming).
-        dry_run (bool): If True, simulates the installation steps without executing them.
-        use_magisk (bool): If True, installs the certificate as a Magisk systemless module.
+        cert_prepared_file (str): Local path to the prepared certificate file.
+        cert_hash (str): The hash of the certificate.
+        dry_run (bool): If True, simulates the installation steps.
+        use_magisk (bool): If True, installs the certificate as a Magisk module.
         
     Returns:
         bool: True if installation was successful (or dry run), False otherwise.
     """
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return False
+
     logger.info("Initiating certificate installation on device...")
 
     if dry_run:
         logger.info("[DRY RUN] Simulating certificate installation...")
+        return True
 
     if use_magisk:
-        logger.info("Attempting Magisk systemless installation...")
-        # Define paths for the Magisk module
-        remote_magisk_module_dir = f"/data/adb/modules/burp_ca_cert_{cert_hash}"
-        remote_cert_path_in_module = f"{remote_magisk_module_dir}/system/etc/security/cacerts/{cert_hash}.0"
-        
-        if dry_run:
-            logger.info(f"[DRY RUN] Would create Magisk module directory: {remote_magisk_module_dir}")
-            logger.info(f"[DRY RUN] Would push certificate to: {remote_cert_path_in_module}")
-            logger.info("[DRY RUN] Would create module.prop and post-fs-data.sh.")
-            return True
+        return _install_with_magisk(adb_path, cert_prepared_file, cert_hash)
+    else:
+        return _install_to_system(adb_path, cert_prepared_file, cert_hash)
 
-        # Pre-check for Magisk/Root access. A simple 'su -c echo' is a good indicator.
-        logger.info("Checking for Magisk/Root access...")
-        su_test_result = run_adb_command(adb_path, ["shell", "su", "-c", "echo 'root_ok'"])
-        if su_test_result.returncode != 0 or "root_ok" not in su_test_result.stdout:
-            logger.error("Magisk/Root access not detected or not granted. Cannot proceed with Magisk installation.")
-            logger.info("Please ensure Magisk is installed, enabled, and ADB has root permissions (via 'adb root' or Magisk prompts).")
-            return False
-        logger.success("Magisk/Root access detected.")
+def _install_to_system(adb_path, cert_prepared_file, cert_hash):
+    """
+    Performs the standard system certificate installation.
+    """
+    logger.info("Attempting standard system certificate installation (requires root and system remount).")
+    
+    # 1. Remount /system as read-write
+    if not remount_system_rw():
+        logger.error("Failed to remount /system as read-write. Cannot install certificate.")
+        return False
+    
+    # 2. Push certificate to a temporary location
+    temp_remote_cert_path = f"/data/local/tmp/{os.path.basename(cert_prepared_file)}"
+    logger.info(f"Pushing certificate to temporary path: {temp_remote_cert_path}...")
+    result = run_command([adb_path, "push", cert_prepared_file, temp_remote_cert_path])
+    if result.returncode != 0:
+        logger.error(f"Failed to push certificate. ADB stderr: {result.stderr}")
+        return False
+    
+    # 3. Move the certificate to the final system path with root permissions
+    remote_cert_path = f"{DEVICE_CERT_DIR}/{cert_hash}.0"
+    move_cmd = shlex.quote(f"mv {temp_remote_cert_path} {remote_cert_path}")
+    logger.info(f"Moving certificate to final path: {remote_cert_path}...")
+    result = run_command([adb_path, "shell", "su", "-c", move_cmd])
+    if result.returncode != 0:
+        logger.error(f"Failed to move certificate. ADB stderr: {result.stderr}")
+        run_command([adb_path, "shell", "rm", temp_remote_cert_path]) # Clean up temp
+        return False
+    
+    # 4. Set correct permissions
+    chmod_cmd = shlex.quote(f"chmod 644 {remote_cert_path}")
+    logger.info("Setting correct permissions...")
+    result = run_command([adb_path, "shell", "su", "-c", chmod_cmd])
+    if result.returncode != 0:
+        logger.error(f"Failed to set permissions. ADB stderr: {result.stderr}")
+        return False
+    
+    logger.success("✓ Certificate pushed and permissions set.")
+    
+    # 5. Remount /system as read-only for security
+    if not remount_system_ro():
+        logger.warn("⚠️ Failed to remount /system as read-only. Device may be left insecure.")
+        return True # The certificate is installed, so we continue, but warn the user
+    
+    logger.success("✓ /system remounted as read-only.")
+    logger.info("Certificate installed. A device reboot may be required to apply changes.")
+    return True
 
-        # Create module directory structure on the device
-        logger.info(f"Creating Magisk module directory: {remote_magisk_module_dir}...")
-        # Need to use 'su -c' because /data/adb is usually not directly writable by adb push
-        result = run_adb_command(adb_path, ["shell", "su", "-c", f"mkdir -p {remote_magisk_module_dir}/system/etc/security/cacerts"])
-        if result.returncode != 0:
-            logger.error(f"Failed to create Magisk module directory. ADB stderr: {result.stderr}")
-            return False
-        logger.success("Magisk module directory created.")
 
-        # Push certificate to a temporary location first, then move it with root
-        logger.info(f"Pushing certificate to Magisk module: {remote_cert_path_in_module}...")
-        temp_remote_cert_path = f"/sdcard/{os.path.basename(cert_prepared_file)}"
-        result = run_adb_command(adb_path, ["push", cert_prepared_file, temp_remote_cert_path])
-        if result.returncode != 0:
-            logger.error(f"Failed to push certificate to temporary location. ADB stderr: {result.stderr}")
-            return False
-        
-        # Move the certificate from temp to final Magisk module path with root permissions
-        move_cmd = f"su -c 'mv {temp_remote_cert_path} {remote_cert_path_in_module}'"
-        result = run_adb_command(adb_path, ["shell", move_cmd])
-        if result.returncode != 0:
-            logger.error(f"Failed to move certificate to Magisk module path. ADB stderr: {result.stderr}")
-            run_adb_command(adb_path, ["shell", f"rm {temp_remote_cert_path}"]) # Attempt to clean up temp file
-            return False
-        logger.success("Certificate pushed and moved into Magisk module.")
+def _install_with_magisk(adb_path,cert_prepared_file, cert_hash):
+    """
+    Performs the systemless Magisk certificate installation.
 
-        # Create module.prop file for Magisk module identification
-        module_prop_content = f"""id=burp_ca_cert_{cert_hash}
+    This function automates the process of creating a Magisk module, pushing it
+    to the device, and installing it with root permissions. It first checks for
+    Magisk's presence and attempts to gain root access via ADB.
+
+    Args:
+        cert_prepared_file (str): Local path to the prepared certificate file (e.g., 9a4a7530.0).
+        cert_hash (str): The hash of the certificate.
+
+    Returns:
+        bool: True if installation was successful, False otherwise.
+    """
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return False
+
+    logger.info("Attempting Magisk systemless installation...")
+
+    # Step 1: Check for Magisk's presence by looking for its package name.
+    logger.info("Checking for Magisk app...")
+    result = run_command([adb_path, "shell", "pm", "list", "packages", "com.topjohnwu.magisk"])
+    if "com.topjohnwu.magisk" not in result.stdout:
+        logger.error("❌ Magisk app not found on the device. Cannot proceed.")
+        logger.info("To use this feature, your device must be rooted with Magisk.")
+        return False
+    logger.success("✓ Magisk app detected.")
+
+    # Step 2: Ensure ADB has root permissions.
+    logger.info("Requesting ADB root privileges...")
+    adb_root_check = run_command([adb_path, "root"])
+    if "restarting adbd as root" in adb_root_check.stdout:
+        logger.info("ADB daemon is restarting with root permissions. Waiting for device to reconnect...")
+        time.sleep(3) # Wait for the daemon to restart
+        if not check_device_connection(adb_path):
+            logger.error("❌ Failed to reconnect after 'adb root'.")
+            return False
+
+    # Step 3: Verify 'su' access.
+    logger.info("Verifying 'su' permissions...")
+    su_check = run_command([adb_path, "shell", "su", "-c", "id -u"])
+    if su_check.returncode != 0 or su_check.stdout.strip() != "0":
+        logger.error("❌ Root access denied by 'su' command. Cannot proceed with Magisk installation.")
+        logger.info("Please accept the root access prompt on your device if it appears.")
+        return False
+    logger.success("✓ Root access verified.")
+
+    # Step 4: Prepare the Magisk module locally.
+    magisk_module_id = f"burp_ca_cert_{cert_hash}"
+    local_temp_module_dir = os.path.join(tempfile.gettempdir(), magisk_module_id)
+    
+    try:
+        cert_module_path = os.path.join(local_temp_module_dir, "system", "etc", "security", "cacerts")
+        os.makedirs(cert_module_path, exist_ok=True)
+        shutil.copy(cert_prepared_file, cert_module_path)
+
+        module_prop_content = f"""id={magisk_module_id}
 name=Burp Suite CA Certificate
 version=v1.0
 versionCode=1
 author=Burp-Frame
-description=Systemless installation of Burp Suite CA certificate for traffic interception.
+description=Systemless installation of Burp Suite CA certificate.
 """
-        # Create locally, push, then delete local copy
-        temp_module_prop_path = os.path.join(os.path.dirname(cert_prepared_file), "module.prop")
-        with open(temp_module_prop_path, "w") as f:
+        with open(os.path.join(local_temp_module_dir, "module.prop"), "w") as f:
             f.write(module_prop_content)
-        
-        result = run_adb_command(adb_path, ["push", temp_module_prop_path, f"{remote_magisk_module_dir}/module.prop"])
-        if result.returncode != 0:
-            logger.error(f"Failed to push module.prop. ADB stderr: {result.stderr}")
-            os.remove(temp_module_prop_path)
-            return False
-        logger.success("module.prop created.")
-        os.remove(temp_module_prop_path) # Clean up local temp file
 
-        # Create post-fs-data.sh (minimal, might be empty if no specific boot scripts needed)
-        # Magisk generally handles symlinking, so post-fs-data.sh might not be strictly needed for a simple CA.
-        post_fs_data_content = f"""#!/system/bin/sh
-# This script is executed in post-fs-data mode by Magisk.
-# No special commands are typically needed here for a simple CA cert module
-# as Magisk handles the bind mounts to /system/etc/security/cacerts automatically.
-"""
-        temp_post_fs_data_path = os.path.join(os.path.dirname(cert_prepared_file), "post-fs-data.sh")
-        with open(temp_post_fs_data_path, "w") as f:
-            f.write(post_fs_data_content)
-        
-        result = run_adb_command(adb_path, ["push", temp_post_fs_data_path, f"{remote_magisk_module_dir}/post-fs-data.sh"])
-        if result.returncode != 0:
-            logger.error(f"Failed to push post-fs-data.sh. ADB stderr: {result.stderr}")
-            os.remove(temp_post_fs_data_path)
-            return False
-        
-        # Set executable permissions for the script
-        result = run_adb_command(adb_path, ["shell", "su", "-c", f"chmod 755 {remote_magisk_module_dir}/post-fs-data.sh"])
-        if result.returncode != 0:
-            logger.error(f"Failed to set permissions for post-fs-data.sh. ADB stderr: {result.stderr}")
-            os.remove(temp_post_fs_data_path)
-            return False
+    except Exception as e:
+        logger.error(f"❌ Failed to prepare local Magisk module files: {e}")
+        return False
 
-        logger.success("post-fs-data.sh created and permissions set.")
-        os.remove(temp_post_fs_data_path) # Clean up local temp file
+    # Step 5: Push and install the module.
+    remote_temp_module_path = f"/data/local/tmp/{magisk_module_id}"
+    remote_final_module_path = f"/data/adb/modules/{magisk_module_id}"
 
-        logger.info("Magisk module created. A device reboot might be required for the module to activate.")
-        return True
-
-    else: # Standard (non-Magisk) system installation path
-        logger.info("Attempting standard system certificate installation (requires root and system remount).")
-        remote_cert_path = f"{DEVICE_CERT_DIR}/{cert_hash}.0"
-        
-        if dry_run:
-            logger.info(f"[DRY RUN] Would push certificate to: {remote_cert_path}")
-            logger.info("[DRY RUN] Would remount /system as read-write, push, then remount read-only.")
-            return True
-
-        # Remount /system as RW
-        # The internal remount_system_rw handles its own logging and root check implicitly via adb remount.
-        if not remount_system_rw(adb_path):
-            logger.error("Failed to remount /system as read-write. Cannot install certificate to system partition.")
-            logger.info("Ensure device is rooted and ADB has root permissions (`adb root`).")
-            return False
-        logger.success("/system remounted as read-write.")
-
-        # Push certificate to /system/etc/security/cacerts/
-        logger.info(f"Pushing certificate to {remote_cert_path}...")
-        # Push to a temporary location first, then move with root permissions
-        temp_remote_cert_path = f"/data/local/tmp/{os.path.basename(cert_prepared_file)}"
-        result = run_adb_command(adb_path, ["push", cert_prepared_file, temp_remote_cert_path])
-        if result.returncode != 0:
-            logger.error(f"Failed to push certificate to temporary location. ADB stderr: {result.stderr}")
-            return False
-        
-        # Move the certificate from temp to final system path with root permissions
-        move_cmd = f"su -c 'mv {temp_remote_cert_path} {remote_cert_path}'"
-        result = run_adb_command(adb_path, ["shell", move_cmd])
-        if result.returncode != 0:
-            logger.error(f"Failed to move certificate to system path. ADB stderr: {result.stderr}")
-            run_adb_command(adb_path, ["shell", f"rm {temp_remote_cert_path}"]) # Clean up temp
-            return False
-        
-        # Set correct permissions for the certificate file
-        chmod_cmd = f"su -c 'chmod 644 {remote_cert_path}'"
-        result = run_adb_command(adb_path, ["shell", chmod_cmd])
-        if result.returncode != 0:
-            logger.error(f"Failed to set permissions for certificate. ADB stderr: {result.stderr}")
-            return False
-        logger.success("Certificate pushed and permissions set.")
-
-        # Remount /system as RO for security
-        if not remount_system_ro(adb_path):
-            logger.error("Failed to remount /system as read-only. Device may be left insecure.")
-            # Still return True if cert push succeeded, but warn user about security implications
-            return True
-        logger.success("/system remounted as read-only.")
-        logger.info("Certificate installed. A device reboot might be required to apply changes.")
-        return True
+    logger.info(f"Pushing Magisk module to temporary location: {remote_temp_module_path}...")
+    push_result = run_command([adb_path, "push", local_temp_module_dir, "/data/local/tmp/"])
+    if push_result.returncode != 0:
+        logger.error(f"❌ Failed to push Magisk module. ADB stderr: {push_result.stderr}")
+        return False
     
-    return False # Should not be reached in normal flow
+    logger.info(f"Moving module from temporary to final location: {remote_final_module_path}...")
+    move_command = shlex.quote(f"mv {remote_temp_module_path} {remote_final_module_path}")
+    move_result = run_command([adb_path, "shell", "su", "-c", move_command])
 
-# --- Core Device Management Functions ---
+    if move_result.returncode != 0:
+        logger.error(f"❌ Failed to move Magisk module. ADB stderr: {move_result.stderr}")
+        return False
+
+    # Step 6: Clean up local temporary files.
+    try:
+        shutil.rmtree(local_temp_module_dir)
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to clean up local temp directory: {e}")
+
+    logger.success("✓ Magisk module created and installed.")
+    logger.info("A device reboot is required for the module to activate. Please reboot the device now.")
+    return True
+
+
+
+
+
+# ... (General Device Commands) ...
 
 def reboot_device():
-    """
-    Reboots the connected Android device.
-    
-    Returns:
-        bool: True if the reboot command was successfully sent, False otherwise.
-    """
+    """Reboots the connected Android device."""
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot reboot device.")
         return False
     
     logger.info("Attempting to reboot the Android device...")
-    # 'adb reboot' command sends the reboot signal and exits quickly.
-    # It doesn't wait for the device to fully reboot, so a subsequent wait-for-device is good.
-    result = run_adb_command(adb_path, ["reboot"])
-
+    result = run_command([adb_path, "reboot"])
+    
     if result.returncode == 0:
-        logger.success("Reboot command sent successfully. Device should be rebooting now.")
-        logger.info("Please wait for the device to restart and reconnect via ADB (this may take a minute or two).")
-        # Optional: Add a wait-for-device if calling this in sequence with other commands
-        # run_adb_command(adb_path, ["wait-for-device"]) # This would block
+        logger.success("✓ Reboot command sent. Device should be rebooting now.")
         return True
     else:
-        logger.error(f"Failed to send reboot command. ADB stderr: {result.stderr}")
+        logger.error(f"❌ Failed to send reboot command. ADB stderr: {result.stderr}")
         return False
 
-def remount_system_rw(adb_path):
-    """
-    Remounts the /system partition of the Android device as read-write.
-    Requires root access.
-    
-    Args:
-        adb_path (str): Path to the ADB executable.
-        
-    Returns:
-        bool: True if remount was successful, False otherwise.
-    """
+def remount_system_rw():
+    """Remounts the /system partition as read-write."""
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return False
+
     logger.info("Attempting to remount /system partition as read-write...")
-    # 'adb remount' is a convenience command that internally tries to do 'su -c mount -o rw,remount /system'
-    result = run_adb_command(adb_path, ["remount"])
+    result = run_command([adb_path, "remount"])
 
     if result.returncode == 0:
         logger.success("✓ /system remounted as read-write.")
@@ -284,210 +281,136 @@ def remount_system_rw(adb_path):
         logger.info("Ensure device is rooted and ADB has root permissions (`adb root` might be needed first).")
         return False
 
-def remount_system_ro(adb_path):
-    """
-    Remounts the /system partition of the Android device as read-only.
-    Requires root access.
-    
-    Args:
-        adb_path (str): Path to the ADB executable.
+def remount_system_ro():
+    """Remounts the /system partition as read-only."""
+    adb_path = get_tool_path("adb")
+    if not adb_path:
+        return False
         
-    Returns:
-        bool: True if remount was successful, False otherwise.
-    """
     logger.info("Attempting to remount /system partition as read-only...")
-    # Explicitly use 'su -c mount -o ro,remount /system' for read-only remount
-    result = run_adb_command(adb_path, ["shell", "su", "-c", "mount -o ro,remount /system"])
+    # Using shlex.quote to handle a single, quoted command string for su -c
+    remount_cmd = shlex.quote("mount -o ro,remount /system")
+    result = run_command([adb_path, "shell", "su", "-c", remount_cmd])
 
     if result.returncode == 0:
         logger.success("✓ /system remounted as read-only.")
         return True
     else:
         logger.error(f"❌ Failed to remount /system as read-only. ADB stderr: {result.stderr}")
-        logger.info("Manual remount to read-only might be required for security. You can try 'adb shell su -c \"mount -o ro,remount /system\"'.")
+        logger.info("Manual remount might be required. You can try: 'adb shell su -c \"mount -o ro,remount /system\"'.")
         return False
 
 def list_adb_connected_devices():
     """
-    Lists all connected Android devices recognized by ADB, along with their status and properties.
+    Lists all connected Android devices and their details.
     
     Returns:
-        list of dict: A list of dictionaries, each containing 'serial', 'state', 'model', and 'product'.
-                      Returns an empty list if no devices found or an error occurs.
+        list of dict: A list of dictionaries with device info.
     """
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot list devices.")
         return []
 
     logger.info("Listing ADB connected devices...")
-    # 'adb devices -l' provides a long listing including product, model, and device names.
-    result = run_adb_command(adb_path, ["devices", "-l"])
-
+    result = run_command([adb_path, "devices", "-l"])
+    
     devices = []
     if result.returncode == 0 and result.stdout:
         lines = result.stdout.strip().splitlines()
-        # Skip the first line which is typically "List of devices attached"
-        if len(lines) > 1:
-            for line in lines[1:]:
-                parts = line.split()
-                if len(parts) >= 2: # At least serial and state must be present
-                    serial = parts[0]
-                    state = parts[1]
-                    model = "N/A"
-                    product = "N/A"
+        for line in lines[1:]: # Skip the header
+            parts = line.split()
+            if len(parts) >= 2:
+                info = {'serial': parts[0], 'state': parts[1]}
+                remaining_info = " ".join(parts[2:])
+                
+                model_match = re.search(r"model:(\S+)", remaining_info)
+                if model_match: info['model'] = model_match.group(1)
+                
+                product_match = re.search(r"product:(\S+)", remaining_info)
+                if product_match: info['product'] = product_match.group(1)
 
-                    # Parse 'product:', 'model:', 'device:' from the rest of the line
-                    # Using regex to robustly find these key-value pairs
-                    remaining_info = " ".join(parts[2:])
-                    model_match = re.search(r"model:(\S+)", remaining_info)
-                    if model_match:
-                        model = model_match.group(1)
-                    product_match = re.search(r"product:(\S+)", remaining_info)
-                    if product_match:
-                        product = product_match.group(1)
-
-                    devices.append({'serial': serial, 'state': state, 'model': model, 'product': product})
-                else:
-                    logger.warn(f"Skipping malformed device line (less than 2 parts): {line.strip()}")
-        
-        if devices:
-            logger.info(f"Found {len(devices)} connected ADB device(s):")
-            for dev in devices:
-                logger.info(f"  - Serial: {dev['serial']}, State: {dev['state']}, Model: {dev['model']} (Product: {dev['product']})")
-        else:
-            logger.info("No ADB devices found.")
-        return devices
+                devices.append(info)
+    
+    if devices:
+        logger.info(f"Found {len(devices)} connected ADB device(s):")
+        for dev in devices:
+            logger.info(f"  - Serial: {dev.get('serial')}, State: {dev.get('state')}, Model: {dev.get('model', 'N/A')}")
     else:
-        logger.error(f"Failed to list ADB devices. ADB stderr: {result.stderr}")
-        return []
+        logger.info("No ADB devices found.")
+    return devices
 
 def install_apk(apk_path):
-    """
-    Installs an APK file onto the connected Android device.
-    
-    Args:
-        apk_path (str): Local path to the APK file.
-        
-    Returns:
-        bool: True if installation was successful, False otherwise.
-    """
+    """Installs an APK file onto the connected Android device."""
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot install APK.")
         return False
     
     if not os.path.exists(apk_path):
         logger.error(f"APK file not found at: {apk_path}")
         return False
-
-    logger.info(f"Installing APK: {apk_path}...")
-    # 'adb install' command handles pushing and installing.
-    result = run_adb_command(adb_path, ["install", apk_path])
-
-    # ADB install outputs "Success" to stdout on success, errors to stderr or stdout
+    
+    logger.info(f"Installing APK: {os.path.basename(apk_path)}...")
+    result = run_command([adb_path, "install", apk_path])
+    
     if result.returncode == 0 and "Success" in result.stdout:
-        logger.success(f"Successfully installed {os.path.basename(apk_path)}.")
+        logger.success(f"✓ Successfully installed {os.path.basename(apk_path)}.")
         return True
     else:
-        logger.error(f"Failed to install APK. ADB stdout: {result.stdout.strip()}")
-        if result.stderr:
-            logger.error(f"ADB stderr: {result.stderr.strip()}")
-        logger.info("Common issues: APK corrupted, insufficient storage, incompatible ABI, or app already installed with different signature.")
+        logger.error(f"❌ Failed to install APK. ADB stdout: {result.stdout.strip()}")
+        logger.info("Common issues: APK corrupted, insufficient storage, incompatible ABI, or app already installed with a different signature.")
         return False
 
 def uninstall_package(package_name):
-    """
-    Uninstalls an application package from the connected Android device.
-    
-    Args:
-        package_name (str): The package name of the application to uninstall (e.g., "com.example.app").
-        
-    Returns:
-        bool: True if uninstallation was successful, False otherwise.
-    """
+    """Uninstalls an application package from the connected Android device."""
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot uninstall package.")
         return False
     
     logger.info(f"Uninstalling package: {package_name}...")
-    # 'adb uninstall' command
-    result = run_adb_command(adb_path, ["uninstall", package_name])
+    result = run_command([adb_path, "uninstall", package_name])
 
-    # ADB uninstall can output success to stderr or stdout sometimes depending on Android version/ADB version
     if result.returncode == 0 and ("Success" in result.stdout or "Success" in result.stderr):
-        logger.success(f"Successfully uninstalled package: {package_name}.")
+        logger.success(f"✓ Successfully uninstalled package: {package_name}.")
         return True
     else:
-        logger.error(f"Failed to uninstall package: {package_name}. ADB stdout: {result.stdout.strip()}")
-        if result.stderr:
-            logger.error(f"ADB stderr: {result.stderr.strip()}")
+        logger.error(f"❌ Failed to uninstall package: {package_name}. ADB stdout: {result.stdout.strip()}")
         logger.info("Common issues: Package not found, or insufficient permissions.")
         return False
 
 def connect_adb_device(ip_address, port="5555"):
-    """
-    Connects to an Android device over TCP/IP using ADB.
-    
-    Args:
-        ip_address (str): The IP address of the target device.
-        port (str): The port for ADB connection, defaults to "5555".
-        
-    Returns:
-        bool: True if connection was successful, False otherwise.
-    """
+    """Connects to an Android device over TCP/IP."""
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot connect to remote device.")
         return False
     
     target = f"{ip_address}:{port}"
     logger.info(f"Attempting to connect to ADB device at {target}...")
     
-    # 'adb connect' command
-    result = run_adb_command(adb_path, ["connect", target])
+    result = run_command([adb_path, "connect", target])
 
-    # Check for success message in stdout (e.g., "connected to 192.168.1.10:5555")
     if result.returncode == 0 and "connected to" in result.stdout:
-        logger.success(f"Successfully connected to device at {target}.")
-        logger.info("Ensure ADB debugging over network is enabled on the device (usually by running 'adb tcpip 5555' from a USB-connected session first).")
+        logger.success(f"✓ Successfully connected to device at {target}.")
+        logger.info("Ensure ADB debugging over network is enabled on the device.")
         return True
     else:
-        logger.error(f"Failed to connect to device at {target}. ADB stdout: {result.stdout.strip()}")
-        if result.stderr:
-            logger.error(f"ADB stderr: {result.stderr.strip()}")
-        logger.info("Possible issues: Device not listening on ADB TCP (run 'adb tcpip 5555' on device), wrong IP/port, or firewall blocking connection.")
+        logger.error(f"❌ Failed to connect to device at {target}. ADB stdout: {result.stdout.strip()}")
+        logger.info("Possible issues: Device not listening on ADB TCP, wrong IP/port, or firewall blocking connection.")
         return False
 
 def disconnect_adb_device(ip_address, port="5555"):
-    """
-    Disconnects from a remote Android device connected over TCP/IP using ADB.
-    
-    Args:
-        ip_address (str): The IP address of the target device to disconnect from.
-        port (str): The port for ADB connection, defaults to "5555".
-        
-    Returns:
-        bool: True if disconnection was successful, False otherwise.
-    """
+    """Disconnects from a remote Android device."""
     adb_path = get_tool_path("adb")
     if not adb_path:
-        logger.error("ADB path not configured. Cannot disconnect from remote device.")
         return False
     
     target = f"{ip_address}:{port}"
     logger.info(f"Attempting to disconnect from ADB device at {target}...")
     
-    # 'adb disconnect' command
-    result = run_adb_command(adb_path, ["disconnect", target])
+    result = run_command([adb_path, "disconnect", target])
 
-    # Check for success (e.g., "disconnected 192.168.1.10:5555" or "no such device 192.168.1.10:5555" if it was already not connected)
     if result.returncode == 0 and ("disconnected" in result.stdout or "no such device" in result.stdout):
-        logger.success(f"Successfully disconnected from device at {target}.")
+        logger.success(f"✓ Successfully disconnected from device at {target}.")
         return True
     else:
-        logger.error(f"Failed to disconnect from device at {target}. ADB stdout: {result.stdout.strip()}")
-        if result.stderr:
-            logger.error(f"ADB stderr: {result.stderr.strip()}")
+        logger.error(f"❌ Failed to disconnect from device at {target}. ADB stdout: {result.stdout.strip()}")
         return False
